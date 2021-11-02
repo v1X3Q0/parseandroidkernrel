@@ -13,6 +13,28 @@ uint32_t* __primary_switch_g = 0;
 uint32_t* __primary_switched_g = 0;
 uint32_t* start_kernel_g = 0;
 
+#define ARM64_MOVBI_OP_MASK     0x7f800000
+#define ARM64_MOVBI_OP_SHIFT    23
+#define ARM64_MOVBI_OP          0x64
+
+#define ARM64_REG_RD_MASK       0x0000001f
+#define ARM64_REG_RD_SHIFT      0
+
+#define GET_ARM64_BF(PC, INST, FIELD) \
+    (PC & ARM64_ ## INST ## _ ## FIELD ## _MASK) >> ARM64_ ## INST ## _ ## FIELD ## _SHIFT
+
+#define CASE_ARM64_OP(PC, INST) \
+    GET_ARM64_BF(PC, INST, OP) == ARM64_ ## INST ## _OP
+
+int parseInstBeta(uint32_t pc)
+{
+    GET_ARM64_BF(pc, MOVBI, OP);
+    if (CASE_ARM64_OP(pc, MOVBI))
+    {
+
+    }
+}
+
 int grab_sinittext()
 {
     int result = -1;
