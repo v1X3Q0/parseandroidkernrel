@@ -3,7 +3,7 @@
 
 #include <localUtil.h>
 #include "ibeSet.h"
-#include <regExBin/regexComponents.h>
+#include <opcOperand.h>
 
 opcOperandVar* instSet::getVar(uint32_t key)
 {

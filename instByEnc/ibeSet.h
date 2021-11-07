@@ -8,7 +8,7 @@
 #include "hdeA64.h"
 #include <localUtil.h>
 
-#include <regExBin/regexComponents.h>
+#include <opcOperand.h>
 
 // class instSet;
 
@@ -17,11 +17,11 @@ class regexInst
 {
 private:
 // opcode? how to do it.....
-    fv_rd* rd;
-    fv_rn* rn;
-    fv_imms* imms;
-    fv_immr* immr;
-    fv_immLarge* immLarge;
+    fv_rd rd;
+    fv_rn rn;
+    fv_imms imms;
+    fv_immr immr;
+    fv_immLarge immLarge;
 
 public:
     static int parseAndCreate(uint32_t instruction,
@@ -32,6 +32,33 @@ public:
         int result = -1;
         SAFE_BAIL(parseInst(instruction, &curInst) == -1);
 
+        fv_rd* thisRd = 0;
+        fv_rn* thisRn = 0;
+        fv_imms* thisImms = 0;
+        fv_immr* thisImmr = 0;
+        fv_immLarge* thisImmLarge = 0;
+
+        if (curInst.VAL_SET & RD)
+        {
+            thisRd = new fv_rd(curInst.rd);
+        }
+        if (curInst.VAL_SET & RN)
+        {
+            thisRd = new fv_rd(curInst.rn);
+        }
+        if (curInst.VAL_SET & IMMS)
+        {
+            thisRd = new fv_rd(curInst.imms);
+        }
+        if (curInst.VAL_SET & IMMR)
+        {
+            thisRd = new fv_rd(curInst.immr);
+        }
+        if (curInst.VAL_SET & IMMLARGE)
+        {
+            thisRd = new fv_rd(curInst.immLarge);
+        }
+       
         targInst = new regexInst(
             new fv_rd(curInst.rd), new fv_rn(curInst.rn), new fv_imms(curInst.imms),
             new fv_immr(curInst.immr), new fv_immLarge(curInst.immLarge)
@@ -48,11 +75,11 @@ public:
     {
         bool result = false;
 
-        SAFE_BAIL(lhs->rd->verifyVal(rhs->rd) == false);
-        SAFE_BAIL(lhs->rn->verifyVal(rhs->rn) == false);
-        SAFE_BAIL(lhs->imms->verifyVal(rhs->imms) == false);
-        SAFE_BAIL(lhs->immr->verifyVal(rhs->immr) == false);
-        SAFE_BAIL(lhs->immLarge->verifyVal(rhs->immLarge) == false);
+        SAFE_BAIL(lhs->rd->verifyValue(rhs->rd) == false);
+        SAFE_BAIL(lhs->rn->verifyValue(rhs->rn) == false);
+        SAFE_BAIL(lhs->imms->verifyValue(rhs->imms) == false);
+        SAFE_BAIL(lhs->immr->verifyValue(rhs->immr) == false);
+        SAFE_BAIL(lhs->immLarge->verifyValue(rhs->immLarge) == false);
         
         result = true;
     fail:

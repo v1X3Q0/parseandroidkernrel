@@ -46,14 +46,19 @@ int parseByEnc(uint32_t pc, hde_t* instTemp)
 
     if CASE_ARM64_ENC(pc, INSTCODE, LS_ENC)
     {
+        instTemp->encode = GET_ARM64_ENC(pc, INSTCODE, LS_ENC);
         if ENCODE_FILTER(pc, LS, OP0, RI, RI)
         {
+            instTemp->ls.op0 = ENC_GET_FIELDTYPE(pc, LS, OP0, RI);
             if ENCODE_FILTER(pc, LS, OP2, IMM, IMM)
             {
+                instTemp->ls.op2 = ENC_GET_FIELDTYPE(pc, LS, OP2, IMM);
                 if ENCODE_FILTER(pc, LS, OP3, LS, IMM)
                 {
+                    instTemp->ls.op3 = ENC_GET_FIELDTYPE(pc, LS, OP3, LS);
                     if (ENCODE_FILTER(pc, LS, OP4, IMM, FIX) || ENCODE_FILTER(pc, LS, OP4, IMM, UI))
                     {
+                        instTemp->ls.op4 = ENC_GET_FIELDTYPE(pc, LS, OP4, IMM);
                         parseRRImm9(pc, instTemp);
                     }
                 }
@@ -67,17 +72,20 @@ int parseByEnc(uint32_t pc, hde_t* instTemp)
     }
     else if CASE_ARM64_ENC(pc, INSTCODE, BR_ENC)
     {
+        instTemp->encode = GET_ARM64_ENC(pc, INSTCODE, BR_ENC);
         if ENCODE_FILTER(pc, BR, OP0, CBR, B)
         {
+            instTemp->br.op0 = ENC_GET_FIELDGROUP(pc, BR, OP0);
             parseImm26(pc, instTemp);
         }
-        instTemp->immLarge = instTemp->immLarge << 2;
     }
     else if CASE_ARM64_ENC(pc, INSTCODE, DPIMM_ENC)
     {
+        instTemp->encode = GET_ARM64_ENC(pc, INSTCODE, DPIMM_ENC);
         // guaranteed adrp case, just calculate the final immediate right away.
         if ENCODE_FILTER(pc, DPIMM, OP0, PC, PC)
         {
+            instTemp->br.op0 = ENC_GET_FIELDTYPE(pc, DPIMM, OP0, PC);
             parseImm19(pc, instTemp);
             instTemp->immLarge = instTemp->imm19 << 14;
             instTemp->immLarge |= GET_ARM64_OP(pc, RI_IMMLO) << 12;

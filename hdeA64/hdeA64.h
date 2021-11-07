@@ -58,9 +58,12 @@
 #define ARM64_BR_OP0_MASK       0xe00000000
 #define ARM64_BR_OP0_SHIFT      29
 // conditional branch without flags
-#define ARM64_BR_OP0_CBR_MASK  0x3
-#define ARM64_BR_OP0_B         0x0
-
+#define ARM64_BR_OP0_CBR_MASK   0x3
+#define ARM64_BR_OP0_B          0x0
+#define ARM64_BR_OP1_MASK       0x03fff000
+#define ARM64_BR_OP1_SHIFT      12
+#define ARM64_BR_OP2_MASK       0x0000001f
+#define ARM64_BR_OP2_SHIFT      0
 
 // load store operations group
 #define ARM64_LS_OP0_MASK       0xf0000000
@@ -95,9 +98,15 @@
 
 #define ARM64_NOP_OP        0xd503201f
 
+#define ENC_GET_FIELDGROUP(CUR_INST, ENC, FIELDGROUP) \
+    ((pc & ARM64_ ## ENC ## _ ## FIELDGROUP ## _MASK) >> ARM64_ ## ENC ## _ ## FIELDGROUP ## _SHIFT)
+
+#define ENC_GET_FIELDTYPE(CUR_INST, ENC, FIELDGROUP, FIELDTYPE) \
+    (ENC_GET_FIELDGROUP(CUR_INST, ENC, FIELDGROUP) & \
+    ARM64_ ## ENC ## _ ## FIELDGROUP ## _ ## FIELDTYPE ## _MASK)
+
 #define ENCODE_FILTER(CUR_INST, ENC, FIELDGROUP, FIELDTYPE, VALUE) \
-    ((((pc & ARM64_ ## ENC ## _ ## FIELDGROUP ## _MASK) >> ARM64_ ## ENC ## _ ## FIELDGROUP ## _SHIFT) & \
-    ARM64_ ## ENC ## _ ## FIELDGROUP ## _ ## FIELDTYPE ## _MASK) == ARM64_ ## ENC ## _ ## FIELDGROUP ## _ ## VALUE)
+    (ENC_GET_FIELDTYPE(CUR_INST, ENC, FIELDGROUP, FIELDTYPE) == ARM64_ ## ENC ## _ ## FIELDGROUP ## _ ## VALUE)
 
 #define GET_ARM64_OP(CUR_INST, PC_PART) \
     (((size_t)CUR_INST & ARM64_ ## PC_PART ## _MASK) >> ARM64_ ## PC_PART ## _SHIFT)
@@ -130,9 +139,46 @@ typedef enum
     IMMLARGE=1 << 4
 } val_set_t;
 
+//      dpimm   br      ls      dpr     dps
+// enc  100x    101x    x1x0    x101    x111
+// op0  3       3       4              
+// op1          14      1
+// op2          5       2
+// op3                  6
+// op4                  2
+
 typedef struct
 {
     uint32_t VAL_SET;
+    union
+    {
+        uint32_t opcode;
+        struct
+        {
+            unsigned int encode : 4;
+            union
+            {
+                struct
+                {
+                    unsigned int op0 : 3;
+                } DPIMM;
+                struct
+                {
+                    unsigned int op0 : 3;
+                    unsigned int op1 : 14;
+                    unsigned int op2 : 5;
+                } BR;
+                struct
+                {
+                    unsigned int op0 : 4;
+                    unsigned int op1 : 1;
+                    unsigned int op2 : 2;
+                    unsigned int op3 : 6;
+                    unsigned int op4 : 2;
+                } LS;            
+            };
+        };
+    };
     union
     {
         uint8_t rd;

@@ -4,7 +4,7 @@ project(parseandroidkernel VERSION 0.1.0)
 include(CTest)
 enable_testing()
 
-include_directories(hdeA64 localUtil instByEnc regex_obj)
+include_directories(hdeA64 localUtil instByEnc opcOperand)
 add_subdirectory(hdeA64)
 add_subdirectory(instByEnc)
 add_subdirectory(parseAndKern)
