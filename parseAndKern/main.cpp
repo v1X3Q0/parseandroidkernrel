@@ -2,10 +2,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include <adrpParse/adrpParse.h>
-#include <regExBin/regexInst.h>
-#include <regExBin/instSet.h>
-#include <localUtil/localUtil.h>
+#include <hdeA64.h>
+#include <ibeSet.h>
+#include <localUtil.h>
 
 uint32_t* binBegin = 0;
 uint32_t* _sinittext_g = 0;
@@ -38,9 +37,9 @@ int parseInstBeta(uint32_t pc)
 int grab_sinittext()
 {
     int result = -1;
-    instruction_t tempInst;
+    hde_t tempInst;
     SAFE_BAIL(parseInst(*binBegin, &tempInst) == -1);
-    _sinittext_g = (uint32_t*)(tempInst.immediate + (size_t)binBegin);
+    _sinittext_g = (uint32_t*)(tempInst.immLarge + (size_t)binBegin);
 
     result = 0;
 fail:
@@ -55,55 +54,69 @@ int grab_primary_switch()
     uint32_t* primSwitchBAddr = 0;
     size_t tmpMath = 0;
 
-    getB.insertInst_t<immediateVar>(ARM64_B_OP, NULL_INST, 0);
-    primSwitchBAddr = getB.ffindRegexInst(_sinittext_g, PAGE_SIZE);
-    SAFE_BAIL(primSwitchBAddr == 0);
+    getB.insertInst(
+         new regexInst<registerFix, registerFix, immediateFix, immediateFix, immediateVar>(0, 0, 0, 0, getB.useKey(0))
+    );
+    // (new regexInst<registerFix, registerFix, immediateFix, immediateFix, immediateVar>(0, 0, 0, 0, getB.useKey(0)))->insertLocal(&getB);
+    // regexInst<registerFix, registerFix, immediateFix, immediateFix, immediateVar>::insertInst(t, getB);
+    // t->insertInst(getB);
+    // getB.insertInst_t<immediateVar>(ARM64_B_OP, NULL_INST, 0);
+    // primSwitchBAddr = getB.ffindRegexInst(_sinittext_g, PAGE_SIZE);
+    // SAFE_BAIL(primSwitchBAddr == 0);
 
-    getB.varValueForKey(0, &primSwitchOff);
-    tmpMath = *(size_t*)(primSwitchOff->getVal() + (size_t)primSwitchBAddr);
-    __primary_switched_g = (uint32_t*)(tmpMath + (size_t)binBegin);
+    // getB.varValueForKey(0, &primSwitchOff);
+    // tmpMath = *(size_t*)(primSwitchOff->getVal() + (size_t)primSwitchBAddr);
+    // __primary_switched_g = (uint32_t*)(tmpMath + (size_t)binBegin);
     
-    result = 0;
+    // result = 0;
 fail:
     return result;
 }
 
-int grab_primary_switched()
-{
-    int result = -1;
-    instSet getB;
-    opcOperandVar* primSwitchedOff;
-    uint32_t* primSwitchedLdrAddr = 0;
+// int grab_primary_switched()
+// {
+//     int result = -1;
+//     instSet getB;
+//     opcOperandVar* primSwitchedOff;
+//     uint32_t* primSwitchedLdrAddr = 0;
 
-    getB.insertInst_t<immediateVar>(ARM64_LDR_OP, NULL_INST, 0);
-    primSwitchedLdrAddr = getB.ffindRegexInst(__primary_switch_g, PAGE_SIZE);
-    SAFE_BAIL(primSwitchedLdrAddr == 0);
+//     getB.insertInst_t<immediateVar>(ARM64_LDR_OP, NULL_INST, 0);
+//     primSwitchedLdrAddr = getB.ffindRegexInst(__primary_switch_g, PAGE_SIZE);
+//     SAFE_BAIL(primSwitchedLdrAddr == 0);
 
-    getB.varValueForKey(0, &primSwitchedOff);
-    __primary_switch_g = (uint32_t*)(primSwitchedOff->getVal() + (size_t)primSwitchedLdrAddr);
+//     getB.varValueForKey(0, &primSwitchedOff);
+//     __primary_switch_g = (uint32_t*)(primSwitchedOff->getVal() + (size_t)primSwitchedLdrAddr);
     
-    result = 0;
-fail:
-    return result;
-}
+//     result = 0;
+// fail:
+//     return result;
+// }
 
-int grab_start_kernel_g()
-{
-    int result = -1;
-    instSet getB;
-    opcOperandVar* startkernOff;
-    uint32_t* startkernBAddr = 0;
+// int grab_start_kernel_g()
+// {
+//     int result = -1;
+//     instSet getB;
+//     opcOperandVar* startkernOff;
+//     uint32_t* startkernBAddr = 0;
 
-    getB.insertInst_t<immediateVar>(ARM64_B_OP, NULL_INST, 0);
-    startkernBAddr = getB.ffindRegexInst(__primary_switched_g, PAGE_SIZE);
-    SAFE_BAIL(startkernBAddr == 0);
+//     getB.insertInst_t<immediateVar>(ARM64_B_OP, NULL_INST, 0);
+//     startkernBAddr = getB.ffindRegexInst(__primary_switched_g, PAGE_SIZE);
+//     SAFE_BAIL(startkernBAddr == 0);
 
-    getB.varValueForKey(0, &startkernOff);
-    start_kernel_g = (uint32_t*)(startkernOff->getVal() + (size_t)startkernBAddr);
+//     getB.varValueForKey(0, &startkernOff);
+//     start_kernel_g = (uint32_t*)(startkernOff->getVal() + (size_t)startkernBAddr);
     
-    result = 0;
-fail:
-    return result;
+//     result = 0;
+// fail:
+//     return result;
+// }
+
+void usage(char** argv)
+{
+    fprintf(stderr, "Usage: %s [-k kernelimage]\n",
+            argv[0]);
+    exit(EXIT_FAILURE);
+
 }
 
 int main(int argc, char **argv)
@@ -111,6 +124,8 @@ int main(int argc, char **argv)
     int flags = 0;
     int opt = 0;
     const char* kernName = 0;
+    FILE * fp = 0;
+    size_t fileSize = 0;
 
     while ((opt = getopt(argc, argv, "k:")) != -1)
     {
@@ -120,11 +135,30 @@ int main(int argc, char **argv)
             kernName = optarg;
             break;
         default: /* '?' */
-            fprintf(stderr, "Usage: %s [-k kernelimage]\n",
-                    argv[0]);
-            exit(EXIT_FAILURE);
+            usage(argv);
         }
     }
 
+    if (kernName == 0)
+    {
+        usage(argv);
+    }
 
+
+    fp = fopen(kernName, "r");
+
+    fseek(fp, 0, SEEK_END);
+    fileSize = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+
+    SAFE_BAIL(posix_memalign((void**)&binBegin, PAGE_SIZE, fileSize) != 0);
+
+    SAFE_BAIL(fread(binBegin, 1, fileSize, fp) != fileSize);
+
+    grab_sinittext();
+
+fail:
+    SAFE_FCLOSE(fp);
+    SAFE_FREE(binBegin);
+    return 0;
 }
