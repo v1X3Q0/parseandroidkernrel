@@ -6,7 +6,8 @@
                 "${workspaceFolder}/**",
                 "hdeA64",
                 "instByEnc",
-                "localUtil"
+                "localUtil",
+                "opcOperand"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",

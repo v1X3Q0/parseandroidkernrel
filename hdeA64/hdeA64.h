@@ -105,7 +105,13 @@
     (ENC_GET_FIELDGROUP(CUR_INST, ENC, FIELDGROUP) & \
     ARM64_ ## ENC ## _ ## FIELDGROUP ## _ ## FIELDTYPE ## _MASK)
 
-#define ENCODE_FILTER(CUR_INST, ENC, FIELDGROUP, FIELDTYPE, VALUE) \
+#define ENCODE_FILTER_SET(CUR_INST, DESTINST, ENC, FIELDGROUP, FIELDTYPE) \
+    DESTINST->ENC.FIELDGROUP = ENC_GET_FIELDTYPE(CUR_INST, ENC, FIELDGROUP, FIELDTYPE)
+
+#define ENCODE_FILTER(CUR_INST, DESTINST, ENC, FIELDGROUP, FIELDTYPE, VALUE) \
+    (ENCODE_FILTER_SET(CUINST, DESTINST, ENC, FIELDGROUP, FIELDTYPE) == ARM64_ ## ENC ## _ ## FIELDGROUP ## _ ## VALUE)
+
+#define ENCODE_FILTER_NO_SET(CUR_INST, ENC, FIELDGROUP, FIELDTYPE, VALUE) \
     (ENC_GET_FIELDTYPE(CUR_INST, ENC, FIELDGROUP, FIELDTYPE) == ARM64_ ## ENC ## _ ## FIELDGROUP ## _ ## VALUE)
 
 #define GET_ARM64_OP(CUR_INST, PC_PART) \
@@ -160,21 +166,21 @@ typedef struct
             {
                 struct
                 {
-                    unsigned int op0 : 3;
+                    unsigned int OP0 : 3;
                 } DPIMM;
                 struct
                 {
-                    unsigned int op0 : 3;
-                    unsigned int op1 : 14;
-                    unsigned int op2 : 5;
+                    unsigned int OP0 : 3;
+                    unsigned int OP1 : 14;
+                    unsigned int OP2 : 5;
                 } BR;
                 struct
                 {
-                    unsigned int op0 : 4;
-                    unsigned int op1 : 1;
-                    unsigned int op2 : 2;
-                    unsigned int op3 : 6;
-                    unsigned int op4 : 2;
+                    unsigned int OP0 : 4;
+                    unsigned int OP1 : 1;
+                    unsigned int OP2 : 2;
+                    unsigned int OP3 : 6;
+                    unsigned int OP4 : 2;
                 } LS;            
             };
         };

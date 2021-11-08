@@ -17,6 +17,7 @@ class regexInst
 {
 private:
 // opcode? how to do it.....
+    uint32_t opcode;
     fv_rd rd;
     fv_rn rn;
     fv_imms imms;
@@ -58,6 +59,7 @@ public:
         {
             thisRd = new fv_rd(curInst.immLarge);
         }
+        targInst->opcode = curInst.opcode;
        
         targInst = new regexInst(
             new fv_rd(curInst.rd), new fv_rn(curInst.rn), new fv_imms(curInst.imms),
@@ -75,6 +77,7 @@ public:
     {
         bool result = false;
 
+        SAFE_BAIL(lhs->opcode->verifyValue(rhs->opcode));
         SAFE_BAIL(lhs->rd->verifyValue(rhs->rd) == false);
         SAFE_BAIL(lhs->rn->verifyValue(rhs->rn) == false);
         SAFE_BAIL(lhs->imms->verifyValue(rhs->imms) == false);
