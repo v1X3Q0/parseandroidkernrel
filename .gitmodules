@@ -1,3 +1,0 @@
-[submodule "regex_obj"]
-	path = regex_obj
-	url = ssh://git@git.parsons.us:7999/~david.riusech_parsons.com/regex_obj.git

@@ -1,0 +1,1 @@
+add_library(opcOperand opcOperand.cpp)

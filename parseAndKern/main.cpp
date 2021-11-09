@@ -50,13 +50,11 @@ int grab_primary_switch()
 {
     int result = -1;
     instSet getB;
-    opcOperandVar* primSwitchOff;
     uint32_t* primSwitchBAddr = 0;
     size_t tmpMath = 0;
 
-    getB.insertInst(
-         new regexInst<registerFix, registerFix, immediateFix, immediateFix, immediateVar>(0, 0, 0, 0, getB.useKey(0))
-    );
+    getB.addNewInst(cOperand::insertToGlob<size_t, size_t, size_t, size_t, size_t>(0, 0, 0, 0, 0, 0));
+
     // (new regexInst<registerFix, registerFix, immediateFix, immediateFix, immediateVar>(0, 0, 0, 0, getB.useKey(0)))->insertLocal(&getB);
     // regexInst<registerFix, registerFix, immediateFix, immediateFix, immediateVar>::insertInst(t, getB);
     // t->insertInst(getB);
@@ -116,7 +114,6 @@ void usage(char** argv)
     fprintf(stderr, "Usage: %s [-k kernelimage]\n",
             argv[0]);
     exit(EXIT_FAILURE);
-
 }
 
 int main(int argc, char **argv)

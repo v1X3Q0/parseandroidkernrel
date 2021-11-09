@@ -136,13 +136,20 @@ if (x) \
     goto fail; \
 }
 
+#define SAFE_DEL(x) \
+    if (x) \
+    { \
+        delete x; \
+        x = 0; \
+    }
+
 typedef enum
 {
-    RD=1,
-    RN=1 << 1,
-    IMMS=1 << 2,
-    IMMR=1 << 3,
-    IMMLARGE=1 << 4
+    e_rd=1,
+    e_rn=1 << 1,
+    e_imms=1 << 2,
+    e_immr=1 << 3,
+    e_immLarge=1 << 4
 } val_set_t;
 
 //      dpimm   br      ls      dpr     dps
@@ -152,6 +159,18 @@ typedef enum
 // op2          5       2
 // op3                  6
 // op4                  2
+
+#ifdef DYN_DISASM
+#define UINT8_SZT size_t
+#define UINT16_SZT size_t
+#define UINT32_SZT size_t
+#define SSZT_SZT size_t
+#else
+#define UINT8_SZT uint8_t
+#define UINT16_SZT uint16_t
+#define UINT32_SZT uint32_t
+#define SSZT_SZT ssize_t
+#endif
 
 typedef struct
 {
@@ -187,21 +206,23 @@ typedef struct
     };
     union
     {
-        uint8_t rd;
-        uint8_t rt;
+        UINT8_SZT rd;
+        UINT8_SZT rt;
     };
-    uint8_t rn;
-    uint8_t imms;
-    uint8_t immr;
+    UINT8_SZT rn;
+    UINT8_SZT imms;
+    UINT8_SZT immr;
     union
     {
-        uint16_t imm9;
-        uint64_t imm12;
-        uint32_t imm19;
-        uint32_t imm26;
-        ssize_t immLarge;
+        UINT16_SZT imm9;
+        UINT16_SZT imm12;
+        UINT32_SZT imm19;
+        UINT32_SZT imm26;
+        SSZT_SZT immLarge;
     };
-} hde_t;
+} hdeA64_t;
+
+#define hde_t hdeA64_t
 
 int parseByEnc(uint32_t pc, hde_t* instTemp);
 #define parseInst parseByEnc

@@ -5,36 +5,51 @@
 #include "ibeSet.h"
 #include <opcOperand.h>
 
-opcOperandVar* instSet::getVar(uint32_t key)
+
+void instSet::addNewInst(cOperand* newInstruction)
 {
-    opcOperandVar* value = 0;
+    instPatternList.push_back(newInstruction);   
+}
+
+size_t** instSet::checkOperand(uint32_t newOperand)
+{
+    size_t** result = 0;
+    auto it = varTable.begin();
+    it = varTable.find(newOperand);
+    if (it == varTable.end())
+    {
+        varTable[newOperand] = new size_t;
+    }
+    result = &varTable[newOperand];
+    return result;
+}
+
+size_t instSet::getVar(uint32_t key)
+{
+    size_t value = 0;
     auto i = varTable.begin();
 
     i = varTable.find(key);
     SAFE_BAIL(i == varTable.end());
 
-    value = i->second;
+    value = *(i->second);
 fail:
     return value;
 }
 
-opcOperandVar* instSet::useKey(uint32_t key)
+bool equalInstSet(std::list<cOperand*>* list1, std::list<cOperand*>* list2)
 {
-    opcOperandVar* value = 0;
-    auto i = varTable.begin();
+    auto it1 = list1->begin();
+    auto it2 = list2->begin();
 
-    i = varTable.find(key);
-    if (i == varTable.end())
+    for (; it1 != list1->end(); it1++)
     {
-        value = new opcOperandVar(key);
+        if ((*it1)->checkHelper((*it2)) == false)
+        {
+            return false;
+        }
     }
-    else
-    {
-        value = varTable[key];
-    }
-
-fail:
-    return value;
+    return true;
 }
 
 int instSet::findPattern(uint32_t* startAddress, size_t sizeSearch, uint32_t** resultAddr)
@@ -43,29 +58,25 @@ int instSet::findPattern(uint32_t* startAddress, size_t sizeSearch, uint32_t** r
     uint32_t* endAddress = (uint32_t*)((size_t)startAddress + sizeSearch);
     uint32_t* curAddr = startAddress;
     uint32_t* slideEnd = curAddr + instPatternList.size();
-    regexInst<registerFix, registerFix, immediateFix, immediateFix, immediateFix>* tempInst;
-    std::list<regexInst<registerFix, registerFix, immediateFix, immediateFix, immediateFix>*> instSlide;
+    std::list<cOperand*> instSlide;
 
     for (int i = 0; i < instPatternList.size(); curAddr++, i++)
     {
-        regexInst<registerFix, registerFix, immediateFix, immediateFix, immediateFix>::parseAndCreate(
-            *curAddr, &tempInst);
-        instSlide.push_back(tempInst);
+        instSlide.push_back(new cOperand(*curAddr));
     }
 
     for (curAddr = startAddress; slideEnd < endAddress; curAddr++, slideEnd++)
     {
-        if (*this == instSlide)
+        if (equalInstSet(&instPatternList, &instSlide) == true)
         {
-            *resultAddr = curAddr;
             result = 0;
+            *resultAddr = curAddr;
             break;
         }
-        
+
+        SAFE_DEL(instSlide.front());
         instSlide.pop_front();
-        regexInst<registerFix, registerFix, immediateFix, immediateFix, immediateFix>::parseAndCreate(
-            *curAddr, &tempInst);
-        instSlide.push_back(tempInst);
+        instSlide.push_back(new cOperand(*slideEnd));
     }
 
 fail:
