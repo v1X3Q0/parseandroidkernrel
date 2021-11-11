@@ -20,10 +20,19 @@
     OPERAND->fixvar_add(&OPERAND->parsedOpcode.INDEX, INDEX, e_ ## INDEX);
     // fixvar_add<typeof(hde_t::INDEX)>(&OPERAND->parsedOpcode.INDEX, INDEX, e_ ## INDEX);
 
+class cOperand;
+
+typedef struct
+{
+    val_set_t val_set;
+    cOperand* regRand;
+} saveVar_t;
+
 class cOperand
 {
 private:
 // if the variable has been fixed
+    uint32_t fixvar_unmod;
     uint32_t fixvar_set;
     hde_t parsedOpcode;
 public:
@@ -33,13 +42,17 @@ public:
     cOperand(uint32_t targOp);
     bool checkHelper(cOperand* targCompare);
 
+    int getOpComp(val_set_t val_set, size_t* component);
+
     // case for adding a fixed size_t 
     // template <typename T>
     void fixvar_add(size_t* targetVar, size_t hde_member, val_set_t e_index);
 
     // case for adding a variable size_t, inwhich we just are adding a * to a **
     // template<typename T>
-    void fixvar_add(size_t* targetVar, size_t** var_member, val_set_t e_index);
+    void fixvar_add(size_t* targetVar, saveVar_t* var_member, val_set_t e_index);
+
+    void clearVars();
 
     template <typename fv_rd, typename fv_rn, typename fv_imms, typename fv_immr, typename fv_immLarge>
     static cOperand* insertToGlob(uint32_t opcode, fv_rd rd, fv_rn rn, fv_imms imms, fv_immr immr, fv_immLarge immLarge)
@@ -52,6 +65,16 @@ public:
         FIXVAR_ADD(immr, outOp);
         FIXVAR_ADD(immLarge, outOp);
         return outOp;
+    }
+
+    template <typename fv_immLarge>
+    static cOperand* createB(fv_immLarge immLarge)
+    {
+        hdea64_opcode lop = {0};
+        ENCODE_OP0_INST(lop, BR, B);
+
+        return insertToGlob<size_t, size_t, size_t, size_t, fv_immLarge>(
+            lop.opcode, 0, 0, 0, 0, immLarge);
     }
 };
 

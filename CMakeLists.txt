@@ -4,6 +4,8 @@ project(parseandroidkernel VERSION 0.1.0)
 include(CTest)
 enable_testing()
 
+# SET(CMAKE_C_FLAGS_DEBUG "-O0")
+# SET(CMAKE_CXX_FLAGS_DEBUG "-O0")
 add_definitions(-DDYN_DISASM)
 include_directories(hdeA64 localUtil instByEnc opcOperand)
 add_subdirectory(hdeA64)

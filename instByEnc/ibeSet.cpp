@@ -11,30 +11,50 @@ void instSet::addNewInst(cOperand* newInstruction)
     instPatternList.push_back(newInstruction);   
 }
 
-size_t** instSet::checkOperand(uint32_t newOperand)
+saveVar_t* instSet::checkOperand(uint32_t newOperand)
 {
-    size_t** result = 0;
+    saveVar_t* result = 0;
     auto it = varTable.begin();
     it = varTable.find(newOperand);
     if (it == varTable.end())
     {
-        varTable[newOperand] = new size_t;
+        result = (saveVar_t*)calloc(1, sizeof(saveVar_t));
+        varTable[newOperand] = result;
     }
-    result = &varTable[newOperand];
+    result = varTable[newOperand];
     return result;
 }
 
-size_t instSet::getVar(uint32_t key)
+saveVar_t* instSet::addOperand(uint32_t newOperand, val_set_t val_set, cOperand* regRand)
 {
-    size_t value = 0;
+    saveVar_t* result = 0;
+    auto it = varTable.begin();
+    it = varTable.find(newOperand);
+    if (it == varTable.end())
+    {
+        result = (saveVar_t*)calloc(1, sizeof(saveVar_t));
+        result->val_set = val_set;
+        result->regRand = regRand;
+        varTable[newOperand] = result;
+    }
+    result = varTable[newOperand];
+    return result;
+}
+
+int instSet::getVar(uint32_t key, size_t* value)
+{
+    int result = -1;
     auto i = varTable.begin();
 
+    SAFE_BAIL(value == 0);
     i = varTable.find(key);
     SAFE_BAIL(i == varTable.end());
 
-    value = *(i->second);
+    SAFE_BAIL(i->second->regRand->getOpComp(i->second->val_set, value) == -1);
+
+    result = 0;
 fail:
-    return value;
+    return result;
 }
 
 bool equalInstSet(std::list<cOperand*>* list1, std::list<cOperand*>* list2)
@@ -50,6 +70,14 @@ bool equalInstSet(std::list<cOperand*>* list1, std::list<cOperand*>* list2)
         }
     }
     return true;
+}
+
+void instSet::clearVars()
+{
+    for (auto i = varTable.begin(); i != varTable.end(); i++)
+    {
+        i->second->regRand->clearVars();
+    }
 }
 
 int instSet::findPattern(uint32_t* startAddress, size_t sizeSearch, uint32_t** resultAddr)
@@ -74,9 +102,16 @@ int instSet::findPattern(uint32_t* startAddress, size_t sizeSearch, uint32_t** r
             break;
         }
 
+        clearVars();
         SAFE_DEL(instSlide.front());
         instSlide.pop_front();
         instSlide.push_back(new cOperand(*slideEnd));
+    }
+
+    for (int i = 0; i < instSlide.size(); i++)
+    {
+        SAFE_DEL(instSlide.front());
+        instSlide.pop_front();
     }
 
 fail:

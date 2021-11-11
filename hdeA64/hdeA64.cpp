@@ -1,4 +1,6 @@
 #include <stdint.h>
+#include <stdarg.h>
+#include <string.h>
 #include "hdeA64.h"
 
 int parseLIinst(uint32_t pc, hde_t* instTemp)
@@ -44,8 +46,15 @@ int parseByEnc(uint32_t pc, hde_t* instTemp)
 {
     int result = -1;
 
+    SAFE_BAIL(instTemp == 0);
+    memset(instTemp, 0, sizeof(hde_t));
+
+    // if ((((pc & ARM64_INSTCODE_MASK) >> ARM64_INSTCODE_SHIFT) & ARM64_LS_ENC_MASK) == ARM64_LS_ENC)
+
     if CASE_ARM64_ENC(pc, INSTCODE, LS_ENC)
     {
+        // instTemp->encode = GET_ARM64_ENC(pc, INSTCODE, LS_ENC);
+        instTemp->encode = E_LS;
         if ENCODE_FILTER(pc, instTemp, LS, OP0, RI, RI)
         {
             if ENCODE_FILTER(pc, instTemp, LS, OP2, IMM, IMM)
@@ -68,15 +77,18 @@ int parseByEnc(uint32_t pc, hde_t* instTemp)
     }
     else if CASE_ARM64_ENC(pc, INSTCODE, BR_ENC)
     {
-        instTemp->encode = GET_ARM64_ENC(pc, INSTCODE, BR_ENC);
+        // instTemp->encode = GET_ARM64_ENC(pc, INSTCODE, BR_ENC);
+        instTemp->encode = E_BR;
         if ENCODE_FILTER(pc, instTemp, BR, OP0, CBR, B)
         {
             parseImm26(pc, instTemp);
         }
+        instTemp->immLarge <<= 2;
     }
     else if CASE_ARM64_ENC(pc, INSTCODE, DPIMM_ENC)
     {
-        instTemp->encode = GET_ARM64_ENC(pc, INSTCODE, DPIMM_ENC);
+        // instTemp->encode = GET_ARM64_ENC(pc, INSTCODE, DPIMM_ENC);
+        instTemp->encode = E_DPIMM;
         // guaranteed adrp case, just calculate the final immediate right away.
         if ENCODE_FILTER(pc, instTemp, DPIMM, OP0, PC, PC)
         {
@@ -94,6 +106,21 @@ int parseByEnc(uint32_t pc, hde_t* instTemp)
         }        
     }
 
+    result = 0;
 fail:
     return result;
 }
+
+// uint32_t opSet(ENCODE_E encoding, int nargs, ...)
+// {
+//     va_list args;
+//     HDEA64_OPCODE localOP;
+
+//     va_start(args, nargs);
+//     for (int i = 0; i < nargs; ++i)
+//     {
+//         localOP.ENCODING.OPNUM = va_arg(args, uint32_t);
+//     }
+//     va_end(args);
+    
+// }

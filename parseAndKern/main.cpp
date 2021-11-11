@@ -37,7 +37,7 @@ int parseInstBeta(uint32_t pc)
 int grab_sinittext()
 {
     int result = -1;
-    hde_t tempInst;
+    hde_t tempInst = {0};
     SAFE_BAIL(parseInst(*binBegin, &tempInst) == -1);
     _sinittext_g = (uint32_t*)(tempInst.immLarge + (size_t)binBegin);
 
@@ -52,21 +52,25 @@ int grab_primary_switch()
     instSet getB;
     uint32_t* primSwitchBAddr = 0;
     size_t tmpMath = 0;
+    size_t primSwitchOff = 0;
 
-    getB.addNewInst(cOperand::insertToGlob<size_t, size_t, size_t, size_t, size_t>(0, 0, 0, 0, 0, 0));
+    getB.addNewInst(cOperand::createB<saveVar_t*>(getB.checkOperand(0)));
+    SAFE_BAIL(getB.findPattern(_sinittext_g, PAGE_SIZE, &primSwitchBAddr) == -1);
 
-    // (new regexInst<registerFix, registerFix, immediateFix, immediateFix, immediateVar>(0, 0, 0, 0, getB.useKey(0)))->insertLocal(&getB);
+    // getB.addNewInst(cOperand::insertToGlob<size_t, size_t, size_t, size_t, size_t>())
+
     // regexInst<registerFix, registerFix, immediateFix, immediateFix, immediateVar>::insertInst(t, getB);
     // t->insertInst(getB);
     // getB.insertInst_t<immediateVar>(ARM64_B_OP, NULL_INST, 0);
     // primSwitchBAddr = getB.ffindRegexInst(_sinittext_g, PAGE_SIZE);
     // SAFE_BAIL(primSwitchBAddr == 0);
 
+    getB.getVar(0, &primSwitchOff);
     // getB.varValueForKey(0, &primSwitchOff);
-    // tmpMath = *(size_t*)(primSwitchOff->getVal() + (size_t)primSwitchBAddr);
-    // __primary_switched_g = (uint32_t*)(tmpMath + (size_t)binBegin);
+    tmpMath = *(size_t*)(primSwitchOff + (size_t)primSwitchBAddr);
+    __primary_switched_g = (uint32_t*)(tmpMath + (size_t)binBegin);
     
-    // result = 0;
+    result = 0;
 fail:
     return result;
 }
@@ -109,6 +113,18 @@ fail:
 //     return result;
 // }
 
+int parseAndGetGlobals()
+{
+    int result = -1;
+
+    SAFE_BAIL(grab_sinittext() == -1);
+    SAFE_BAIL(grab_primary_switch() == -1);
+
+    result = 0;
+fail:
+    return result;
+}
+
 void usage(char** argv)
 {
     fprintf(stderr, "Usage: %s [-k kernelimage]\n",
@@ -143,6 +159,7 @@ int main(int argc, char **argv)
 
 
     fp = fopen(kernName, "r");
+    SAFE_BAIL(fp == 0);
 
     fseek(fp, 0, SEEK_END);
     fileSize = ftell(fp);
@@ -152,7 +169,7 @@ int main(int argc, char **argv)
 
     SAFE_BAIL(fread(binBegin, 1, fileSize, fp) != fileSize);
 
-    grab_sinittext();
+    SAFE_BAIL(parseAndGetGlobals() == -1);
 
 fail:
     SAFE_FCLOSE(fp);

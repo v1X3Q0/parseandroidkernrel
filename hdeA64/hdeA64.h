@@ -124,10 +124,10 @@
     CASE_ARM64_IND(CUR_INST, PC_PART, OP_TYPE, OP)
 
 #define GET_ARM64_ENC(CUR_INST, PC_PART, ENC) \
-    (((size_t)CUR_INST & ARM64_ ## PC_PART ## _MASK) >> ARM64_ ## PC_PART ## _SHIFT) & ARM64_ ## ENC ## _MASK
+    (((CUR_INST & ARM64_ ## PC_PART ## _MASK) >> ARM64_ ## PC_PART ## _SHIFT) & ARM64_ ## ENC ## _MASK)
 
 #define CASE_ARM64_ENC(CUR_INST, PC_PART, OP_TYPE) \
-(GET_ARM64_ENC(CUR_INST, PC_PART, OP_TYPE) == ARM64_ ## OP_TYPE)
+    (GET_ARM64_ENC(CUR_INST, PC_PART, OP_TYPE) == ARM64_ ## OP_TYPE)
 
 
 #define SAFE_BAIL(x) \
@@ -172,38 +172,51 @@ typedef enum
 #define SSZT_SZT ssize_t
 #endif
 
+typedef enum
+{
+    E_BR=1,
+    E_LS,
+    E_DPIMM,
+    E_DPREG
+} ENCODE_E;
+
+#define HDEA64_OPCODE \
+    union \
+    { \
+        uint32_t opcode; \
+        struct \
+        { \
+            ENCODE_E encode : 4; \
+            union \
+            { \
+                struct \
+                { \
+                    unsigned int OP0 : 3; \
+                } DPIMM; \
+                struct \
+                { \
+                    unsigned int OP0 : 3; \
+                    unsigned int OP1 : 14; \
+                    unsigned int OP2 : 5; \
+                } BR; \
+                struct \
+                { \
+                    unsigned int OP0 : 4; \
+                    unsigned int OP1 : 1; \
+                    unsigned int OP2 : 2; \
+                    unsigned int OP3 : 6; \
+                    unsigned int OP4 : 2; \
+                } LS; \
+            }; \
+        }; \
+    }
+
+typedef HDEA64_OPCODE hdea64_opcode;
+
 typedef struct
 {
     uint32_t VAL_SET;
-    union
-    {
-        uint32_t opcode;
-        struct
-        {
-            unsigned int encode : 4;
-            union
-            {
-                struct
-                {
-                    unsigned int OP0 : 3;
-                } DPIMM;
-                struct
-                {
-                    unsigned int OP0 : 3;
-                    unsigned int OP1 : 14;
-                    unsigned int OP2 : 5;
-                } BR;
-                struct
-                {
-                    unsigned int OP0 : 4;
-                    unsigned int OP1 : 1;
-                    unsigned int OP2 : 2;
-                    unsigned int OP3 : 6;
-                    unsigned int OP4 : 2;
-                } LS;            
-            };
-        };
-    };
+    HDEA64_OPCODE;
     union
     {
         UINT8_SZT rd;
@@ -226,5 +239,11 @@ typedef struct
 
 int parseByEnc(uint32_t pc, hde_t* instTemp);
 #define parseInst parseByEnc
+
+uint32_t opSet(ENCODE_E encoding, int nargs, ...);
+
+#define ENCODE_OP0_INST(DSTOP, ENCODE, OP_0) \
+    DSTOP.encode = E_ ## ENCODE; \
+    DSTOP.ENCODE.OP0 = ARM64_ ## ENCODE ## _OP0_ ## OP_0;
 
 #endif
