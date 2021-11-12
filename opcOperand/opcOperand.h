@@ -37,7 +37,7 @@ private:
     hde_t parsedOpcode;
 public:
 // initiate it to an initialized fixed variable, that's it.
-    cOperand() : fixvar_set(e_rd | e_rn | e_imms | e_immr | e_immLarge) {};
+    cOperand();
 // constructor for fixed operands
     cOperand(uint32_t targOp);
     bool checkHelper(cOperand* targCompare);
@@ -72,6 +72,16 @@ public:
     {
         hdea64_opcode lop = {0};
         ENCODE_OP0_INST(lop, BR, B);
+
+        return insertToGlob<size_t, size_t, size_t, size_t, fv_immLarge>(
+            lop.opcode, 0, 0, 0, 0, immLarge);
+    }
+
+    template <typename fv_immLarge>
+    static cOperand* createBL(fv_immLarge immLarge)
+    {
+        hdea64_opcode lop = {0};
+        ENCODE_OP0_INST(lop, BR, BL);
 
         return insertToGlob<size_t, size_t, size_t, size_t, fv_immLarge>(
             lop.opcode, 0, 0, 0, 0, immLarge);

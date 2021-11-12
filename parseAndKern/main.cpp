@@ -19,21 +19,6 @@ uint32_t* start_kernel_g = 0;
 #define ARM64_REG_RD_MASK       0x0000001f
 #define ARM64_REG_RD_SHIFT      0
 
-#define GET_ARM64_BF(PC, INST, FIELD) \
-    (PC & ARM64_ ## INST ## _ ## FIELD ## _MASK) >> ARM64_ ## INST ## _ ## FIELD ## _SHIFT
-
-#define CASE_ARM64_OP(PC, INST) \
-    GET_ARM64_BF(PC, INST, OP) == ARM64_ ## INST ## _OP
-
-int parseInstBeta(uint32_t pc)
-{
-    GET_ARM64_BF(pc, MOVBI, OP);
-    if (CASE_ARM64_OP(pc, MOVBI))
-    {
-
-    }
-}
-
 int grab_sinittext()
 {
     int result = -1;
@@ -56,16 +41,7 @@ int grab_primary_switch()
     getB.addNewInst(cOperand::createB<saveVar_t*>(getB.checkOperand(0)));
     SAFE_BAIL(getB.findPattern(_sinittext_g, PAGE_SIZE, &primSwitchBAddr) == -1);
 
-    // getB.addNewInst(cOperand::insertToGlob<size_t, size_t, size_t, size_t, size_t>())
-
-    // regexInst<registerFix, registerFix, immediateFix, immediateFix, immediateVar>::insertInst(t, getB);
-    // t->insertInst(getB);
-    // getB.insertInst_t<immediateVar>(ARM64_B_OP, NULL_INST, 0);
-    // primSwitchBAddr = getB.ffindRegexInst(_sinittext_g, PAGE_SIZE);
-    // SAFE_BAIL(primSwitchBAddr == 0);
-
     getB.getVar(0, &primSwitchOff);
-    // getB.varValueForKey(0, &primSwitchOff);
     __primary_switch_g = (uint32_t*)(primSwitchOff + (size_t)primSwitchBAddr);
     
     result = 0;
@@ -81,20 +57,23 @@ int grab_primary_switched()
     size_t tmpMath = 0;
     size_t primSwitchOff = 0;
 
+// the old way,was find a particular branch, resolve the math for an ldr and
+// afterwards add it to the found address. changed to resolving an adjacent
+// routine and looking for a prologue.
+
     // operand 1 is the immediate19, operand 2 is the register
-    getB.addNewInst(cOperand::createLDRL<saveVar_t*, saveVar_t*>(getB.checkOperand(0), getB.checkOperand(1)));
-    SAFE_BAIL(getB.findPattern(__primary_switch_g, PAGE_SIZE, &primSwitchedLdrAddr) == -1);
+    // getB.addNewInst(cOperand::createLDRL<saveVar_t*, saveVar_t*>(getB.checkOperand(0), getB.checkOperand(1)));
+    // SAFE_BAIL(getB.findPattern(__primary_switch_g, PAGE_SIZE, &primSwitchedLdrAddr) == -1);
 
-    // getB.insertInst_t<immediateVar>(ARM64_LDR_OP, NULL_INST, 0);
-    // primSwitchedLdrAddr = getB.ffindRegexInst(__primary_switch_g, PAGE_SIZE);
-    // SAFE_BAIL(primSwitchedLdrAddr == 0);
+    // getB.getVar(0, &primSwitchOff);
 
-    // tmpMath = *(size_t*)(primSwitchOff + (size_t)primSwitchBAddr);
+    // tmpMath = *(size_t*)(primSwitchOff + (size_t)primSwitchedLdrAddr);
     // __primary_switched_g = (uint32_t*)(tmpMath + (size_t)binBegin);
 
-    // getB.varValueForKey(0, &primSwitchedOff);
-    // __primary_switch_g = (uint32_t*)(primSwitchedOff->getVal() + (size_t)primSwitchedLdrAddr);
-    
+    getB.addNewInst(new cOperand(ARM64_ISB_OP));
+    getB.addNewInst(cOperand::createBL<saveVar_t*>(getB.checkOperand(0)));
+    SAFE_BAIL(getB.findPattern(__primary_switch_g, PAGE_SIZE, &primSwitchedLdrAddr) == -1);
+
     result = 0;
 fail:
     return result;

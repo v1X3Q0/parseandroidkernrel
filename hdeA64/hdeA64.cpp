@@ -96,8 +96,14 @@ int parseByEnc(uint32_t pc, hde_t* instTemp)
         if ENCODE_FILTER(FG, pc, instTemp, BR, OP0, CBR, B)
         {
             parseImm26(pc, instTemp);
+            instTemp->immLarge <<= 2;
         }
-        instTemp->immLarge <<= 2;
+        else if ENCODE_FILTER(FG, pc, instTemp, BR, OP1, ETC, BAR)
+        {
+            instTemp->rt = GET_ARM64_OP(pc, RT);
+            instTemp->BR.OP2 = GET_ARM64_OP(pc, RN);
+
+        }
     }
     else if CASE_ARM64_ENC(pc, INSTCODE, DPIMM_ENC)
     {
@@ -121,7 +127,8 @@ int parseByEnc(uint32_t pc, hde_t* instTemp)
     }
     else
     {
-        goto fail;
+        instTemp->encode = E_UNCLASS;
+        instTemp->unclass_val = pc;
     }
 
     result = 0;

@@ -61,8 +61,14 @@
 #define ARM64_BR_OP0_CBR_MASK   0x3
 #define ARM64_BR_OP0_B          0x0
 #define ARM64_BR_OP0_BL         0x4
+#define ARM64_BR_OP0_ETC_MASK   0x7
+#define ARM64_BR_OP0_SYS        0x6
+
 #define ARM64_BR_OP1_MASK       0x03fff000
 #define ARM64_BR_OP1_SHIFT      12
+#define ARM64_BR_OP1_ETC_MASK   0x3fff
+#define ARM64_BR_OP1_BAR        0x1033
+
 #define ARM64_BR_OP2_MASK       0x0000001f
 #define ARM64_BR_OP2_SHIFT      0
 
@@ -99,6 +105,7 @@
 #define ARM64_LS_OP4_UI         0x0
 
 #define ARM64_NOP_OP        0xd503201f
+#define ARM64_ISB_OP        0xd5033fdf
 
 #define ENC_GET_FIELDGROUP(CUR_INST, ENC, FIELDGROUP) \
     ((pc & ARM64_ ## ENC ## _ ## FIELDGROUP ## _MASK) >> ARM64_ ## ENC ## _ ## FIELDGROUP ## _SHIFT)
@@ -184,10 +191,11 @@ typedef enum
 
 typedef enum
 {
+    E_UNCLASS=0,
     E_BR=1,
     E_LS,
     E_DPIMM,
-    E_DPREG
+    E_DPREG,
 } ENCODE_E;
 
 // NOTE:
@@ -223,6 +231,7 @@ typedef enum
                     uint32_t OP3 : 6; \
                     uint32_t OP4 : 2; \
                 } LS; \
+                uint32_t unclass_val; \
             }; \
         }; \
     }

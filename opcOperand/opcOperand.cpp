@@ -5,6 +5,11 @@
 #include "opcOperand.h"
 #include <hdeA64.h>
 
+cOperand::cOperand() : fixvar_set(e_rd | e_rn | e_imms | e_immr | e_immLarge)
+{
+    memset(&parsedOpcode, 0, sizeof(hde_t));
+}
+
 cOperand::cOperand(uint32_t targOp)
 {
     parseInst(targOp, &parsedOpcode);
