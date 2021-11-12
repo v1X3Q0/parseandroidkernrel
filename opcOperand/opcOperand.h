@@ -55,7 +55,7 @@ public:
     void clearVars();
 
     template <typename fv_rd, typename fv_rn, typename fv_imms, typename fv_immr, typename fv_immLarge>
-    static cOperand* insertToGlob(uint32_t opcode, fv_rd rd, fv_rn rn, fv_imms imms, fv_immr immr, fv_immLarge immLarge)
+    static cOperand* insertToGlob(uint64_t opcode, fv_rd rd, fv_rn rn, fv_imms imms, fv_immr immr, fv_immLarge immLarge)
     {
         cOperand* outOp = new cOperand;
         outOp->parsedOpcode.opcode = opcode;
@@ -75,6 +75,16 @@ public:
 
         return insertToGlob<size_t, size_t, size_t, size_t, fv_immLarge>(
             lop.opcode, 0, 0, 0, 0, immLarge);
+    }
+
+    template <typename fv_imm19, typename fv_rt>
+    static cOperand* createLDRL(fv_imm19 imm19, fv_rt rt)
+    {
+        hdea64_opcode lop = {0};
+        ENCODE_OP2_INST(lop, LS, RL, NULL, IMM);
+
+        return insertToGlob<fv_rt, size_t, size_t, size_t, fv_imm19>(
+            lop.opcode, rt, 0, 0, 0, imm19);
     }
 };
 

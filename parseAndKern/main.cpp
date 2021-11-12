@@ -51,7 +51,6 @@ int grab_primary_switch()
     int result = -1;
     instSet getB;
     uint32_t* primSwitchBAddr = 0;
-    size_t tmpMath = 0;
     size_t primSwitchOff = 0;
 
     getB.addNewInst(cOperand::createB<saveVar_t*>(getB.checkOperand(0)));
@@ -67,32 +66,39 @@ int grab_primary_switch()
 
     getB.getVar(0, &primSwitchOff);
     // getB.varValueForKey(0, &primSwitchOff);
-    tmpMath = *(size_t*)(primSwitchOff + (size_t)primSwitchBAddr);
-    __primary_switched_g = (uint32_t*)(tmpMath + (size_t)binBegin);
+    __primary_switch_g = (uint32_t*)(primSwitchOff + (size_t)primSwitchBAddr);
     
     result = 0;
 fail:
     return result;
 }
 
-// int grab_primary_switched()
-// {
-//     int result = -1;
-//     instSet getB;
-//     opcOperandVar* primSwitchedOff;
-//     uint32_t* primSwitchedLdrAddr = 0;
+int grab_primary_switched()
+{
+    int result = -1;
+    instSet getB;
+    uint32_t* primSwitchedLdrAddr = 0;
+    size_t tmpMath = 0;
+    size_t primSwitchOff = 0;
 
-//     getB.insertInst_t<immediateVar>(ARM64_LDR_OP, NULL_INST, 0);
-//     primSwitchedLdrAddr = getB.ffindRegexInst(__primary_switch_g, PAGE_SIZE);
-//     SAFE_BAIL(primSwitchedLdrAddr == 0);
+    // operand 1 is the immediate19, operand 2 is the register
+    getB.addNewInst(cOperand::createLDRL<saveVar_t*, saveVar_t*>(getB.checkOperand(0), getB.checkOperand(1)));
+    SAFE_BAIL(getB.findPattern(__primary_switch_g, PAGE_SIZE, &primSwitchedLdrAddr) == -1);
 
-//     getB.varValueForKey(0, &primSwitchedOff);
-//     __primary_switch_g = (uint32_t*)(primSwitchedOff->getVal() + (size_t)primSwitchedLdrAddr);
+    // getB.insertInst_t<immediateVar>(ARM64_LDR_OP, NULL_INST, 0);
+    // primSwitchedLdrAddr = getB.ffindRegexInst(__primary_switch_g, PAGE_SIZE);
+    // SAFE_BAIL(primSwitchedLdrAddr == 0);
+
+    // tmpMath = *(size_t*)(primSwitchOff + (size_t)primSwitchBAddr);
+    // __primary_switched_g = (uint32_t*)(tmpMath + (size_t)binBegin);
+
+    // getB.varValueForKey(0, &primSwitchedOff);
+    // __primary_switch_g = (uint32_t*)(primSwitchedOff->getVal() + (size_t)primSwitchedLdrAddr);
     
-//     result = 0;
-// fail:
-//     return result;
-// }
+    result = 0;
+fail:
+    return result;
+}
 
 // int grab_start_kernel_g()
 // {
@@ -119,6 +125,7 @@ int parseAndGetGlobals()
 
     SAFE_BAIL(grab_sinittext() == -1);
     SAFE_BAIL(grab_primary_switch() == -1);
+    SAFE_BAIL(grab_primary_switched() == -1);
 
     result = 0;
 fail:

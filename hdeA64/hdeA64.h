@@ -15,7 +15,7 @@
 #define ARM64_IMM12_SHIFT       10
 #define ARM64_IMM19_MASK        0x00ffffe0
 #define ARM64_IMM19_SHIFT       5
-#define ARM64_IMM26_MASK        0x00ffffff
+#define ARM64_IMM26_MASK        0x03ffffff
 #define ARM64_IMM26_SHIFT       0
 #define ARM64_RT_MASK           0x0000001f
 #define ARM64_RT_SHIFT          0
@@ -26,7 +26,7 @@
 
 #define ARM64_RI_IMMLO_MASK     0x60000000
 #define ARM64_RI_IMMLO_SHIFT    29
-#define ARM64_RRI_OPTSZ_MASK    0x40000000
+#define ARM64_RRI_OPTSZ_MASK    0xc0000000
 #define ARM64_RRI_OPTSZ_SHIFT   30
 
 #define ARM64_INSTCODE_MASK     0x1e000000
@@ -55,11 +55,12 @@
 #define ARM64_DPIMM_OP0_LI      0x4
 
 // branch operations group
-#define ARM64_BR_OP0_MASK       0xe00000000
+#define ARM64_BR_OP0_MASK       0xe0000000
 #define ARM64_BR_OP0_SHIFT      29
 // conditional branch without flags
 #define ARM64_BR_OP0_CBR_MASK   0x3
 #define ARM64_BR_OP0_B          0x0
+#define ARM64_BR_OP0_BL         0x4
 #define ARM64_BR_OP1_MASK       0x03fff000
 #define ARM64_BR_OP1_SHIFT      12
 #define ARM64_BR_OP2_MASK       0x0000001f
@@ -71,16 +72,17 @@
 #define ARM64_LS_OP0_RI_MASK    0x3
 #define ARM64_LS_OP0_RR         0x2
 #define ARM64_LS_OP0_RI         0x3
+#define ARM64_LS_OP0_RL         0x1
 
 #define ARM64_LS_OP1_MASK       0x04000000
 #define ARM64_LS_OP1_SHIFT      26
+#define ARM64_LS_OP1_NULL       0
 
 #define ARM64_LS_OP2_MASK       0x01800000
 #define ARM64_LS_OP2_SHIFT      23
 #define ARM64_LS_OP2_IMM_MASK   0x2
 #define ARM64_LS_OP2_IMM        0x0
 #define ARM64_LS_OP2_UIMM       0x2
-
 
 #define ARM64_LS_OP3_MASK       0x003f0000
 #define ARM64_LS_OP3_SHIFT      16
@@ -101,15 +103,23 @@
 #define ENC_GET_FIELDGROUP(CUR_INST, ENC, FIELDGROUP) \
     ((pc & ARM64_ ## ENC ## _ ## FIELDGROUP ## _MASK) >> ARM64_ ## ENC ## _ ## FIELDGROUP ## _SHIFT)
 
+#define ENC_GET_FIELDGROUP_SET(CUR_INST, DESTINST, ENC, FIELDGROUP) \
+    (DESTINST->ENC.FIELDGROUP = ((pc & ARM64_ ## ENC ## _ ## FIELDGROUP ## _MASK) >> ARM64_ ## ENC ## _ ## FIELDGROUP ## _SHIFT))
+
 #define ENC_GET_FIELDTYPE(CUR_INST, ENC, FIELDGROUP, FIELDTYPE) \
-    (ENC_GET_FIELDGROUP(CUR_INST, ENC, FIELDGROUP) & \
-    ARM64_ ## ENC ## _ ## FIELDGROUP ## _ ## FIELDTYPE ## _MASK)
+    (ENC_GET_FIELDGROUP(CUR_INST, ENC, FIELDGROUP) & ARM64_ ## ENC ## _ ## FIELDGROUP ## _ ## FIELDTYPE ## _MASK)
 
-#define ENCODE_FILTER_SET(CUR_INST, DESTINST, ENC, FIELDGROUP, FIELDTYPE) \
-    DESTINST->ENC.FIELDGROUP = ENC_GET_FIELDTYPE(CUR_INST, ENC, FIELDGROUP, FIELDTYPE)
+#define ENC_GET_FIELDTYPE_SET(CUR_INST, DESTINST, ENC, FIELDGROUP, FIELDTYPE) \
+    (ENC_GET_FIELDGROUP_SET(CUR_INST, DESTINST, ENC, FIELDGROUP) & ARM64_ ## ENC ## _ ## FIELDGROUP ## _ ## FIELDTYPE ## _MASK)
 
-#define ENCODE_FILTER(CUR_INST, DESTINST, ENC, FIELDGROUP, FIELDTYPE, VALUE) \
-    (ENCODE_FILTER_SET(CUINST, DESTINST, ENC, FIELDGROUP, FIELDTYPE) == ARM64_ ## ENC ## _ ## FIELDGROUP ## _ ## VALUE)
+#define ENCODE_FILTER_SETFT(CUR_INST, DESTINST, ENC, FIELDGROUP, FIELDTYPE) \
+    (DESTINST->ENC.FIELDGROUP = ENC_GET_FIELDTYPE(CUR_INST, ENC, FIELDGROUP, FIELDTYPE))
+
+#define ENCODE_FILTER_SETFG(CUR_INST, DESTINST, ENC, FIELDGROUP, FIELDTYPE) \
+    ENC_GET_FIELDTYPE_SET(CUR_INST, DESTINST, ENC, FIELDGROUP, FIELDTYPE)
+
+#define ENCODE_FILTER(FGT, CUR_INST, DESTINST, ENC, FIELDGROUP, FIELDTYPE, VALUE) \
+    (ENCODE_FILTER_SET ## FGT(CUINST, DESTINST, ENC, FIELDGROUP, FIELDTYPE) == ARM64_ ## ENC ## _ ## FIELDGROUP ## _ ## VALUE)
 
 #define ENCODE_FILTER_NO_SET(CUR_INST, ENC, FIELDGROUP, FIELDTYPE, VALUE) \
     (ENC_GET_FIELDTYPE(CUR_INST, ENC, FIELDGROUP, FIELDTYPE) == ARM64_ ## ENC ## _ ## FIELDGROUP ## _ ## VALUE)
@@ -180,38 +190,44 @@ typedef enum
     E_DPREG
 } ENCODE_E;
 
+// NOTE:
+// i TRIED to get away with using ENCODE_E encode : 4;, but it seems as though
+// even when i try to bitfield my enumberation, it still gets casted to a 
+// uint32_t. so just uint32_t and bitfielding will allow me to at least use the 
+// size and preserve the value.
+
 #define HDEA64_OPCODE \
     union \
     { \
-        uint32_t opcode; \
+        uint64_t opcode; \
         struct \
         { \
-            ENCODE_E encode : 4; \
+            ENCODE_E encode; \
             union \
             { \
                 struct \
                 { \
-                    unsigned int OP0 : 3; \
+                    uint32_t OP0 : 3; \
                 } DPIMM; \
                 struct \
                 { \
-                    unsigned int OP0 : 3; \
-                    unsigned int OP1 : 14; \
-                    unsigned int OP2 : 5; \
+                    uint32_t OP0 : 3; \
+                    uint32_t OP1 : 14; \
+                    uint32_t OP2 : 5; \
                 } BR; \
                 struct \
                 { \
-                    unsigned int OP0 : 4; \
-                    unsigned int OP1 : 1; \
-                    unsigned int OP2 : 2; \
-                    unsigned int OP3 : 6; \
-                    unsigned int OP4 : 2; \
+                    uint32_t OP0 : 4; \
+                    uint32_t OP1 : 1; \
+                    uint32_t OP2 : 2; \
+                    uint32_t OP3 : 6; \
+                    uint32_t OP4 : 2; \
                 } LS; \
             }; \
         }; \
     }
 
-typedef HDEA64_OPCODE hdea64_opcode;
+typedef HDEA64_OPCODE __attribute__ ((aligned (1))) __attribute__((packed, aligned(1))) hdea64_opcode;
 
 typedef struct
 {
@@ -233,7 +249,7 @@ typedef struct
         UINT32_SZT imm26;
         SSZT_SZT immLarge;
     };
-} hdeA64_t;
+} __attribute__ ((aligned (1))) __attribute__((packed, aligned(1))) hdeA64_t;
 
 #define hde_t hdeA64_t
 
@@ -245,5 +261,19 @@ uint32_t opSet(ENCODE_E encoding, int nargs, ...);
 #define ENCODE_OP0_INST(DSTOP, ENCODE, OP_0) \
     DSTOP.encode = E_ ## ENCODE; \
     DSTOP.ENCODE.OP0 = ARM64_ ## ENCODE ## _OP0_ ## OP_0;
+
+#define ENCODE_OP4_INST(DSTOP, ENCODE, OP_0, OP_1, OP_2, OP_3, OP_4) \
+    DSTOP.encode = E_ ## ENCODE; \
+    DSTOP.ENCODE.OP0 = ARM64_ ## ENCODE ## _OP0_ ## OP_0; \
+    DSTOP.ENCODE.OP1 = ARM64_ ## ENCODE ## _OP1_ ## OP_1; \
+    DSTOP.ENCODE.OP2 = ARM64_ ## ENCODE ## _OP2_ ## OP_2; \
+    DSTOP.ENCODE.OP3 = ARM64_ ## ENCODE ## _OP3_ ## OP_3; \
+    DSTOP.ENCODE.OP4 = ARM64_ ## ENCODE ## _OP4_ ## OP_4;
+
+#define ENCODE_OP2_INST(DSTOP, ENCODE, OP_0, OP_1, OP_2) \
+    DSTOP.encode = E_ ## ENCODE; \
+    DSTOP.ENCODE.OP0 = ARM64_ ## ENCODE ## _OP0_ ## OP_0; \
+    DSTOP.ENCODE.OP1 = ARM64_ ## ENCODE ## _OP1_ ## OP_1; \
+    DSTOP.ENCODE.OP2 = ARM64_ ## ENCODE ## _OP2_ ## OP_2;
 
 #endif
