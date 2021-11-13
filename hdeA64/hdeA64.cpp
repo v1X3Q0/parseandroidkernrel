@@ -110,7 +110,7 @@ int parseByEnc(uint32_t pc, hde_t* instTemp)
         // instTemp->encode = GET_ARM64_ENC(pc, INSTCODE, DPIMM_ENC);
         instTemp->encode = E_DPIMM;
         // guaranteed adrp case, just calculate the final immediate right away.
-        if ENCODE_FILTER(FT, pc, instTemp, DPIMM, OP0, PC, PC)
+        if ENCODE_FILTER(FG, pc, instTemp, DPIMM, OP0, PC, ADR)
         {
             parseImm19(pc, instTemp);
             instTemp->immLarge = instTemp->imm19 << 14;
@@ -123,7 +123,11 @@ int parseByEnc(uint32_t pc, hde_t* instTemp)
         else if ENCODE_FILTER(FT, pc, instTemp, DPIMM, OP0, GEN, LI)
         {
             parseLIinst(pc, instTemp);
-        }        
+        }
+        else if ENCODE_FILTER(FT, pc, instTemp, DPIMM, OP0, GEN, ASI)
+        {
+            parseRRImm12(pc, instTemp);
+        }
     }
     else
     {

@@ -87,14 +87,34 @@ public:
             lop.opcode, 0, 0, 0, 0, immLarge);
     }
 
-    template <typename fv_imm19, typename fv_rt>
-    static cOperand* createLDRL(fv_imm19 imm19, fv_rt rt)
+    template <typename fv_rt, typename fv_imm19>
+    static cOperand* createLDRL(fv_rt rt, fv_imm19 imm19)
     {
         hdea64_opcode lop = {0};
         ENCODE_OP2_INST(lop, LS, RL, NULL, IMM);
 
         return insertToGlob<fv_rt, size_t, size_t, size_t, fv_imm19>(
             lop.opcode, rt, 0, 0, 0, imm19);
+    }
+
+    template <typename fv_rd, typename fv_rn, typename fv_imm12>
+    static cOperand* createASI(fv_rd rd, fv_rn rn, fv_imm12 imm12)
+    {
+        hdea64_opcode lop = {0};
+        ENCODE_OP0_INST(lop, DPIMM, ASI);
+
+        return insertToGlob<fv_rd, fv_rn, size_t, size_t, fv_imm12>(
+            lop.opcode, rd, rn, 0, 0, imm12);
+    }
+
+    template <typename fv_rd, typename fv_immLarge>
+    static cOperand* createADRP(fv_rd rd, fv_immLarge immLarge)
+    {
+        hdea64_opcode lop = {0};
+        ENCODE_OP0_INST(lop, DPIMM, ADRP);
+
+        return insertToGlob<fv_rd, size_t, size_t, size_t, fv_immLarge>(
+            lop.opcode, rd, 0, 0, 0, immLarge);
     }
 };
 

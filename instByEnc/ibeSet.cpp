@@ -11,6 +11,15 @@ void instSet::addNewInst(cOperand* newInstruction)
     instPatternList.push_back(newInstruction);   
 }
 
+void instSet::clearInstructions()
+{
+    for (int i = 0; i < instPatternList.size(); i++)
+    {
+        SAFE_DEL(instPatternList.front());
+        instPatternList.pop_front();
+    }
+}
+
 saveVar_t* instSet::checkOperand(uint32_t newOperand)
 {
     saveVar_t* result = 0;
@@ -62,7 +71,7 @@ bool equalInstSet(std::list<cOperand*>* list1, std::list<cOperand*>* list2)
     auto it1 = list1->begin();
     auto it2 = list2->begin();
 
-    for (; it1 != list1->end(); it1++)
+    for (; it1 != list1->end(); it1++, it2++)
     {
         if ((*it1)->checkHelper((*it2)) == false)
         {

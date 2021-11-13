@@ -10,6 +10,7 @@ uint32_t* binBegin = 0;
 uint32_t* _sinittext_g = 0;
 uint32_t* __primary_switch_g = 0;
 uint32_t* __primary_switched_g = 0;
+uint32_t* __create_page_tables_g = 0;
 uint32_t* start_kernel_g = 0;
 
 #define ARM64_MOVBI_OP_MASK     0x7f800000
@@ -56,6 +57,8 @@ int grab_primary_switched()
     uint32_t* primSwitchedLdrAddr = 0;
     size_t tmpMath = 0;
     size_t primSwitchOff = 0;
+    uint32_t* create_page_tablesAddr = 0;
+    size_t create_page_tablesOff = 0;
 
 // the old way,was find a particular branch, resolve the math for an ldr and
 // afterwards add it to the found address. changed to resolving an adjacent
@@ -65,14 +68,22 @@ int grab_primary_switched()
     // getB.addNewInst(cOperand::createLDRL<saveVar_t*, saveVar_t*>(getB.checkOperand(0), getB.checkOperand(1)));
     // SAFE_BAIL(getB.findPattern(__primary_switch_g, PAGE_SIZE, &primSwitchedLdrAddr) == -1);
 
-    // getB.getVar(0, &primSwitchOff);
+    // getB.getVar(1, &primSwitchOff);
 
     // tmpMath = *(size_t*)(primSwitchOff + (size_t)primSwitchedLdrAddr);
     // __primary_switched_g = (uint32_t*)(tmpMath + (size_t)binBegin);
 
     getB.addNewInst(new cOperand(ARM64_ISB_OP));
     getB.addNewInst(cOperand::createBL<saveVar_t*>(getB.checkOperand(0)));
-    SAFE_BAIL(getB.findPattern(__primary_switch_g, PAGE_SIZE, &primSwitchedLdrAddr) == -1);
+    SAFE_BAIL(getB.findPattern(__primary_switch_g, PAGE_SIZE, &create_page_tablesAddr) == -1);
+
+    getB.getVar(0, &create_page_tablesOff);
+    __create_page_tables_g = (uint32_t*)(create_page_tablesOff + (size_t)create_page_tablesAddr + sizeof(uint32_t));
+
+    getB.clearInstructions();
+    getB.addNewInst(cOperand::createADRP<saveVar_t*, saveVar_t*>(getB.checkOperand(0), getB.checkOperand(1)));
+    getB.addNewInst(cOperand::createASI<size_t, saveVar_t*, size_t>(SP, getB.checkOperand(0), 4));
+    SAFE_BAIL(getB.findPattern(__create_page_tables_g, PAGE_SIZE, &__primary_switched_g) == -1);
 
     result = 0;
 fail:
