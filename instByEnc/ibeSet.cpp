@@ -11,12 +11,21 @@ void instSet::addNewInst(cOperand* newInstruction)
     instPatternList.push_back(newInstruction);   
 }
 
-void instSet::clearInstructions()
+void instSet::clearInternals()
 {
-    for (int i = 0; i < instPatternList.size(); i++)
+    auto it = varTable.begin();
+
+    while (instPatternList.size() > 0)
     {
         SAFE_DEL(instPatternList.front());
         instPatternList.pop_front();
+    }
+
+    while (varTable.size() > 0)
+    {
+        it = varTable.begin();
+        SAFE_FREE(it->second);
+        varTable.erase(it->first);
     }
 }
 
@@ -96,13 +105,14 @@ int instSet::findPattern(uint32_t* startAddress, size_t sizeSearch, uint32_t** r
     uint32_t* curAddr = startAddress;
     uint32_t* slideEnd = curAddr + instPatternList.size();
     std::list<cOperand*> instSlide;
+    int dbgCounter = 0;
 
     for (int i = 0; i < instPatternList.size(); curAddr++, i++)
     {
         instSlide.push_back(new cOperand(*curAddr));
     }
 
-    for (curAddr = startAddress; slideEnd < endAddress; curAddr++, slideEnd++)
+    for (curAddr = startAddress; slideEnd < endAddress; curAddr++, slideEnd++, dbgCounter++)
     {
         if (equalInstSet(&instPatternList, &instSlide) == true)
         {
@@ -117,7 +127,7 @@ int instSet::findPattern(uint32_t* startAddress, size_t sizeSearch, uint32_t** r
         instSlide.push_back(new cOperand(*slideEnd));
     }
 
-    for (int i = 0; i < instSlide.size(); i++)
+    while (instSlide.size() != 0)
     {
         SAFE_DEL(instSlide.front());
         instSlide.pop_front();

@@ -87,6 +87,7 @@ public:
             lop.opcode, 0, 0, 0, 0, immLarge);
     }
 
+    // create load register literal
     template <typename fv_rt, typename fv_imm19>
     static cOperand* createLDRL(fv_rt rt, fv_imm19 imm19)
     {
@@ -111,10 +112,32 @@ public:
     static cOperand* createADRP(fv_rd rd, fv_immLarge immLarge)
     {
         hdea64_opcode lop = {0};
-        ENCODE_OP0_INST(lop, DPIMM, ADRP);
+        ENCODE_OP0_INST(lop, DPIMM, PC);
 
         return insertToGlob<fv_rd, size_t, size_t, size_t, fv_immLarge>(
             lop.opcode, rd, 0, 0, 0, immLarge);
+    }
+
+    // logical immediate, which in the end looks like a move
+    template <typename fv_rd, typename fv_rn, typename fv_imms, typename fv_immr>
+    static cOperand* createLI(fv_rd rd, fv_rn rn, fv_imms imms, fv_immr immr)
+    {
+        hdea64_opcode lop = {0};
+        ENCODE_OP0_INST(lop, DPIMM, LI);
+
+        return insertToGlob<fv_rd, fv_rn, fv_imms, fv_immr, size_t>(
+            lop.opcode, rd, rn, imms, immr, 0);
+    }
+
+    // mov with a wide immediate
+    template <typename fv_rd, typename fv_imm16>
+    static cOperand* createMWI(fv_rd rd, fv_imm16 imm16)
+    {
+        hdea64_opcode lop = {0};
+        ENCODE_OP0_INST(lop, DPIMM, MWI);
+
+        return insertToGlob<fv_rd, size_t, size_t, size_t, imm16>(
+            lop.opcode, rd, 0, 0, 0, imm16);
     }
 };
 

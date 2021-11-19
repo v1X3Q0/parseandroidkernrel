@@ -29,6 +29,13 @@ int parseRRImm12(uint32_t pc, hde_t* instTemp)
     return 0;
 }
 
+int parseImm16(uint32_t pc, hde_t* instTemp)
+{
+    instTemp->imm16 = GET_ARM64_OP(pc, IMM16);
+    instTemp->rd = GET_ARM64_OP(pc, RD);
+    return 0;
+}
+
 int parseImm19(uint32_t pc, hde_t* pcParsed)
 {
     pcParsed->imm19 = GET_ARM64_OP(pc, IMM19);
@@ -107,17 +114,21 @@ int parseByEnc(uint32_t pc, hde_t* instTemp)
     }
     else if CASE_ARM64_ENC(pc, INSTCODE, DPIMM_ENC)
     {
-        // instTemp->encode = GET_ARM64_ENC(pc, INSTCODE, DPIMM_ENC);
         instTemp->encode = E_DPIMM;
         // guaranteed adrp case, just calculate the final immediate right away.
-        if ENCODE_FILTER(FG, pc, instTemp, DPIMM, OP0, PC, ADR)
+        if ENCODE_FILTER(FT, pc, instTemp, DPIMM, OP0, PC, PC)
         {
             parseImm19(pc, instTemp);
-            instTemp->immLarge = instTemp->imm19 << 14;
-            instTemp->immLarge |= GET_ARM64_OP(pc, RI_IMMLO) << 12;
+            // adrp op bit, if msb set shift 12
+            if (pc & 0x80000000)
+            {
+                lsl_value = 12;
+            }
+            instTemp->immLarge = instTemp->imm19 << lsl_value + 2;
+            instTemp->immLarge |= GET_ARM64_OP(pc, RI_IMMLO) << lsl_value;
             if (pc & 0x00800000)
             {
-                instTemp->immLarge = 0xFFFFFFE000000000 | instTemp->immLarge;
+                instTemp->immLarge = 0xFFFFFFFE00000000 | instTemp->immLarge;
             }
         }
         else if ENCODE_FILTER(FT, pc, instTemp, DPIMM, OP0, GEN, LI)
@@ -128,6 +139,50 @@ int parseByEnc(uint32_t pc, hde_t* instTemp)
         {
             parseRRImm12(pc, instTemp);
         }
+        else if ENCODE_FILTER(FT, pc, instTemp, DPIMM, OP0, GEN, MWI)
+        {
+            parseImm16(pc, instTemp);
+        }
+    }
+    else if CASE_ARM64_ENC(pc, INSTCODE, DPREG_ENC)
+    {
+        instTemp->encode = E_DPREG;
+        if ENCODE_FILTER(FT, pc, instTemp, DPREG, OP1, GEN, SER)
+        {
+            if ENCODE_FILTER(FT, pc, instTemp, DPREG, OP2, LSR, LSR)
+            {
+
+            }
+            else if ENCODE_FILTER(FT, pc, instTemp, DPREG, OP2, ASSE, ASS)
+            {
+                
+            }
+            else if ENCODE_FILTER(FT, pc, instTemp, DPREG, OP2, ASSE, ASE)
+            {
+                
+            }
+        }
+        else if ENCODE_FILTER(FT, pc, instTemp, DPREG, OP1, GEN, NSER)
+        {
+            if ENCODE_FILTER(FT, pc, instTemp, DPREG, OP2, GEN, DP)
+            {
+                if ENCODE_FILTER(FT, pc, instTemp, DPREG, OP0, DPNS, 1SRC)
+                {
+
+                }
+                else if ENCODE_FILTER(FT, pc, instTemp, DPREG, OP0, DPNS, 2SRC)
+                {
+                    
+                }
+            }
+            else if ENCODE_FILTER(FT, pc, instTemp, DPREG, OP2, GEN, ANS)
+            {
+                if ENCODE_FILTER(FT, pc, instTemp, DPREG, OP3, GEN, ASC)
+                {
+
+                }
+            }
+        }        
     }
     else
     {
@@ -139,17 +194,3 @@ int parseByEnc(uint32_t pc, hde_t* instTemp)
 fail:
     return result;
 }
-
-// uint32_t opSet(ENCODE_E encoding, int nargs, ...)
-// {
-//     va_list args;
-//     HDEA64_OPCODE localOP;
-
-//     va_start(args, nargs);
-//     for (int i = 0; i < nargs; ++i)
-//     {
-//         localOP.ENCODING.OPNUM = va_arg(args, uint32_t);
-//     }
-//     va_end(args);
-    
-// }

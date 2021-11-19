@@ -35,7 +35,8 @@
 #define X28 28
 #define X29 29
 #define X30 30
-#define SP 31
+#define X31 31
+#define SP X31
 
 #define ARM64_IMMR_MASK      0x003f0000
 #define ARM64_IMMR_SHIFT     16
@@ -46,6 +47,8 @@
 #define ARM64_IMM9_SHIFT        12
 #define ARM64_IMM12_MASK        0x003ffc00
 #define ARM64_IMM12_SHIFT       10
+#define ARM64_IMM16_MASK        0x001fffe0
+#define ARM64_IMM16_SHIFT       5
 #define ARM64_IMM19_MASK        0x00ffffe0
 #define ARM64_IMM19_SHIFT       5
 #define ARM64_IMM26_MASK        0x03ffffff
@@ -56,6 +59,8 @@
 #define ARM64_RD_SHIFT          ARM64_RT_SHIFT
 #define ARM64_RN_MASK           0x000003e0
 #define ARM64_RN_SHIFT          5
+#define ARM64_RM_MASK           0x001f0000
+#define ARM64_RM_SHIFT          16
 
 #define ARM64_RI_IMMLO_MASK     0x60000000
 #define ARM64_RI_IMMLO_SHIFT    29
@@ -78,18 +83,54 @@
 #define ARM64_DPREG_ENC_MASK    0x7
 #define ARM64_DPREG_ENC         0x5
 
+#define ARM64_DPREG_OP0_MASK    0x40000000
+#define ARM64_DPREG_OP0_SHIFT   30
+#define ARM64_DPREG_OP0_DPNS_MASK   0x1
+#define ARM64_DPREG_OP0_2SRC    0x0
+#define ARM64_DPREG_OP0_1SRC    0x1
+
+#define ARM64_DPREG_OP1_MASK    0x10000000
+#define ARM64_DPREG_OP1_SHIFT   28
+// shift or extend instructions have a 0, the rest are 1
+#define ARM64_DPREG_OP1_GEN_MASK    0x1
+#define ARM64_DPREG_OP1_SER     0x0
+#define ARM64_DPREG_OP1_NSER    0x1
+
+#define ARM64_DPREG_OP2_MASK    0x01e00000
+#define ARM64_DPREG_OP2_SHIFT   21
+#define ARM64_DPREG_OP2_GEN_MASK    0xf
+// these are paired with the generic data processing instructions
+#define ARM64_DPREG_OP2_DP      0x6
+// noticed that the instructions covered here are arithmetic,
+// they just don't seem dependent on the register that the
+// shift or extend instructions, SER, did
+#define ARM64_DPREG_OP2_ANS     0x0
+#define ARM64_DPREG_OP2_LSR_MASK    0x8
+#define ARM64_DPREG_OP2_LSR     0x0
+#define ARM64_DPREG_OP2_ASSE_MASK   0x9
+#define ARM64_DPREG_OP2_ASS     0x8
+#define ARM64_DPREG_OP2_ASE     0x9
+
+#define ARM64_DPREG_OP3_MASK    0x0000fc00
+#define ARM64_DPREG_OP3_SHIFT   10
+#define ARM64_DPREG_OP3_GEN_MASK    0x3f
+#define ARM64_DPREG_OP3_ASC     0x0
+
 // data processing immediate group
 #define ARM64_DPIMM_OP0_MASK    0x03800000
 #define ARM64_DPIMM_OP0_SHIFT   23
 
 #define ARM64_DPIMM_OP0_PC_MASK 0x6
 // pc relative address, adrp
-#define ARM64_DPIMM_OP0_ADR     0x0
+#define ARM64_DPIMM_OP0_PC      0x0
 #define ARM64_DPIMM_OP0_ADRP    0x1
 #define ARM64_DPIMM_OP0_GEN_MASK 0x7
 // logical immediate
 #define ARM64_DPIMM_OP0_LI      0x4
+// add subtract immediate
 #define ARM64_DPIMM_OP0_ASI     0x2
+// move wide immediate
+#define ARM64_DPIMM_OP0_MWI     0x5
 
 // branch operations group
 #define ARM64_BR_OP0_MASK       0xe0000000
@@ -256,6 +297,13 @@ typedef enum
                 } DPIMM; \
                 struct \
                 { \
+                    uint32_t OP0 : 1; \
+                    uint32_t OP1 : 1; \
+                    uint32_t OP2 : 4; \
+                    uint32_t OP3 : 6; \
+                } DPREG; \
+                struct \
+                { \
                     uint32_t OP0 : 3; \
                     uint32_t OP1 : 14; \
                     uint32_t OP2 : 5; \
@@ -285,12 +333,19 @@ typedef struct
         UINT8_SZT rt;
     };
     UINT8_SZT rn;
-    UINT8_SZT imms;
+    UINT8_SZT rm;
+    union
+    {
+        UINT8_SZT imms;
+        UINT8_SZT imm6;
+    };
+    
     UINT8_SZT immr;
     union
     {
         UINT16_SZT imm9;
         UINT16_SZT imm12;
+        UINT16_SZT imm16;
         UINT32_SZT imm19;
         UINT32_SZT imm26;
         SSZT_SZT immLarge;

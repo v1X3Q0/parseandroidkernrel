@@ -12,6 +12,7 @@ add_subdirectory(hdeA64)
 add_subdirectory(instByEnc)
 add_subdirectory(opcOperand)
 add_subdirectory(parseAndKern)
+add_subdirectory(localUtil)
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
