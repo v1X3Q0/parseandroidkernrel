@@ -1,1 +1,0 @@
-add_library(hdeA64 hdeA64.cpp)

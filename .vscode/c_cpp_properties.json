@@ -4,10 +4,9 @@
             "name": "Linux",
             "includePath": [
                 "${workspaceFolder}/**",
-                "hdeA64",
-                "instByEnc",
-                "localUtil",
-                "opcOperand"
+                "${workspaceFolder}/hde_armv8",
+                "${workspaceFolder}/localUtil",
+                "${workspaceFolder}/c_reginst"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",

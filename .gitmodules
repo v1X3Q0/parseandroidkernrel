@@ -1,0 +1,6 @@
+[submodule "hde_armv8"]
+	path = hde_armv8
+	url = git@bitbucket.org:v1X3Q0/hde_armv8.git
+[submodule "c_reginst"]
+	path = c_reginst
+	url = git@bitbucket.org:v1X3Q0/c_reginst.git
