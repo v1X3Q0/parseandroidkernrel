@@ -84,9 +84,9 @@ int main(int argc, char **argv)
     if (vmlinux_targ != 0)
     {
         SAFE_BAIL(grabElfFile(vmlinux_targ, (void**)&vmlinuxBase, NULL) == -1);
-        specSection(vmlinuxBase, "__ksymtab", (void**)&ksymBase, &ksymCount);
+        SAFE_BAIL(specSection(vmlinuxBase, "__ksymtab", (void**)&ksymBase, &ksymCount) == -1);
         ksymCount /= sizeof(kernel_symbol);
-        specSection(vmlinuxBase, "__kcrctab", (void**)&kcrcBase, 0);
+        SAFE_BAIL(specSection(vmlinuxBase, "__kcrctab", (void**)&kcrcBase, 0) == -1);
     }
     else if (kernimg_targ != 0)
     {
@@ -98,7 +98,7 @@ int main(int argc, char **argv)
     }
 
     SAFE_BAIL(newDriver == 0);
-    grabElfFile(newDriver, (void**)&drverBase, &drvSize);
+    SAFE_BAIL(grabElfFile(newDriver, (void**)&drverBase, &drvSize) == -1);
 
     populateVers(drverBase, &versMap);
     
