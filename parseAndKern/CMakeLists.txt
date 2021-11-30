@@ -1,2 +1,2 @@
-add_executable(parseAndKern main.cpp)
-target_link_libraries(parseAndKern PRIVATE hdeA64 c_reginst localUtil)
+add_executable(patchCrc main.cpp patchCrc.cpp parseAndKern.cpp)
+target_link_libraries(patchCrc PRIVATE hdeA64 c_reginst localUtil)
