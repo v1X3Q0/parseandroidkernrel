@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <map>
+#include <vector>
 #include <string>
 
 #include <localUtil.h>
@@ -13,9 +14,13 @@ int findSec(char *elfBase, const char* sectionName, Elf64_Shdr** secHeadFound)
 {
     int result = -1;
     Elf64_Ehdr *foundHeader = (Elf64_Ehdr *)elfBase;
-    Elf64_Shdr *foundSecTab = (Elf64_Shdr *)(foundHeader->e_shoff + elfBase);
-    const char *strTab = (const char *)(foundSecTab[foundHeader->e_shstrndx].sh_offset + elfBase);
+    Elf64_Shdr *foundSecTab = 0;
+    const char *strTab = 0;
 
+    SAFE_BAIL(*(uint32_t*)elfBase != 0x464c457f);
+    foundSecTab = (Elf64_Shdr *)(foundHeader->e_shoff + elfBase);
+    strTab = (const char *)(foundSecTab[foundHeader->e_shstrndx].sh_offset + elfBase);
+    
     for (int i = 0; i < foundHeader->e_shnum; i++)
     {
         if (strcmp(strTab + foundSecTab[i].sh_name, sectionName) == 0)
@@ -25,6 +30,8 @@ int findSec(char *elfBase, const char* sectionName, Elf64_Shdr** secHeadFound)
             break;
         }
     }
+    result = 0;
+fail:
     return result;
 }
 
@@ -88,14 +95,14 @@ int populateVers(char *elfBase, std::map<std::string, unsigned long>* crcPairs)
     versIter = versBase;
     for (int j = 0; j < verSize; j += sizeof(modversion_info), versIter++)
     {
-        (*crcPairs)[std::string(versIter->name)] = 0;
+        (*crcPairs)[std::string(versIter->name)] = versIter->crc;
     }
     result = 0;
 fail:
     return result;
 }
 
-int populateCrc(std::map<std::string, unsigned long>* crcPairs,
+int populateCrcKsymtab(std::map<std::string, unsigned long>* crcPairs,
     kernel_symbol* ksymBase, size_t ksymCount, uint32_t* kcrcBase)
 {
     int result = -1;
@@ -118,6 +125,22 @@ int populateCrc(std::map<std::string, unsigned long>* crcPairs,
     result = 0;
 fail:
     return result;
+}
+
+int populateCrcMap(std::map<std::string, unsigned long>* crcPairs, std::map<std::string, unsigned long>* crcNet)
+{
+    for (auto i = crcPairs->begin(); i != crcPairs->end(); i++)
+    {
+        if (crcNet->find(i->first) == crcNet->end())
+        {
+            printf("WARNING: symbol %s not found\n", i->first.data());
+        }
+        else
+        {
+            (*crcPairs)[i->first] = i->second;
+        }
+    }
+    return 0;
 }
 
 int grabElfFile(const char* fileTargName, void** allocBase, size_t* fSize)
@@ -151,5 +174,22 @@ int grabElfFile(const char* fileTargName, void** allocBase, size_t* fSize)
     result = 0;
 fail:
     SAFE_FCLOSE(outFile);
+    return result;
+}
+
+int symvers_modules(std::vector<std::string>* vendor_modules, std::map<std::string, unsigned long>* crcNet)
+{
+    int result = -1;
+    char* tmpModBase = 0;
+
+    for (auto i = vendor_modules->begin(); i != vendor_modules->end(); i++)
+    {
+        SAFE_CONT(grabElfFile(i->data(), (void**)&tmpModBase, 0) == -1);
+        populateVers(tmpModBase, crcNet);
+        SAFE_FREE(tmpModBase);
+    }
+
+    result = 0;
+fail:
     return result;
 }

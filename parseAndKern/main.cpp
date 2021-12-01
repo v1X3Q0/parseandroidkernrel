@@ -8,6 +8,7 @@
 #include <localUtil.h>
 #include "parseAndKern.h"
 #include "patchCrc.h"
+#include "iterate_dir.h"
 
 int usage(const char* name)
 {
@@ -22,8 +23,11 @@ int main(int argc, char **argv)
     const char *newDriver = 0;
     const char* vmlinux_targ = 0;
     const char* kernimg_targ = 0;
+    const char* vendorimg_path = 0;
     std::pair<std::string, unsigned long> tmpObj;
     std::map<std::string, unsigned long> versMap;
+    std::map<std::string, unsigned long> vendor_crcs;
+    std::vector<std::string> vendorimg_names;
     size_t drvSize = 0;
     char *drverBase = 0;
     char *vmlinuxBase = 0;
@@ -39,7 +43,7 @@ int main(int argc, char **argv)
 
     int opt = 0;
     
-    while ((opt = getopt(argc, argv, "v:k:m:f")) != -1)
+    while ((opt = getopt(argc, argv, "v:k:m:fi:")) != -1)
     {
         switch (opt)
         {
@@ -53,6 +57,9 @@ int main(int argc, char **argv)
             newDriver = optarg;
             break;
         case 'f':
+            break;
+        case 'i':
+            vendorimg_path = optarg;
             break;
         default: /* '?' */
             usage(argv[0]);
@@ -90,6 +97,9 @@ int main(int argc, char **argv)
     }
     else if (kernimg_targ != 0)
     {
+        SAFE_BAIL(vendorimg_path == 0);
+        SAFE_BAIL(get_libmodules(vendorimg_path, &vendorimg_names) == -1);
+        symvers_modules(&vendorimg_names, &vendor_crcs);
         SAFE_BAIL(grabElfFile(kernimg_targ, (void**)&kernimgBase, NULL) == -1);
         parsedKernimg = new kern_img((uint32_t*)kernimgBase);
         ksymBase = parsedKernimg->get_ksymtab();
@@ -104,12 +114,11 @@ int main(int argc, char **argv)
     
     if ((ksymBase->name == 0) && (versMap.size() == 0))
     {
-        printf("don't currently support zero'd out crc's");
-        goto fail;
+        populateCrcMap(&versMap, &vendor_crcs);
     }
     else
     {
-        populateCrc(&versMap, ksymBase, ksymCount, kcrcBase);
+        populateCrcKsymtab(&versMap, ksymBase, ksymCount, kcrcBase);
     }
 
     patchVersion(drverBase, &versMap);
