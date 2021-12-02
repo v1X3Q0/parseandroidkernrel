@@ -8,10 +8,14 @@
             "name": "(gdb) Launch",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/parseAndKern/parseAndKern",
+            "program": "${workspaceFolder}/build/parseAndKern/patchCrc",
             "args": [
                 "-k",
-                "/home/mariomain/Downloads/android-images/sunfish-rq3a.211001.001/image-sunfish-rq3a.211001.001/boot-extracted/kernelimage"
+                "/home/mariomain/Downloads/android-images/walleye-qq3a.200805.001/image-walleye-qq3a.200805.001/boot.img-extracted/kernelimage",
+                "-i",
+                "/media/mariomain/vendor/lib/modules",
+                "-m",
+                "/home/mariomain/repos/rwDrv/mychar.ko"
             ],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",

@@ -30,7 +30,7 @@ int findSec(char *elfBase, const char* sectionName, Elf64_Shdr** secHeadFound)
             break;
         }
     }
-    result = 0;
+
 fail:
     return result;
 }
@@ -77,7 +77,7 @@ int patchVersion(char *elfBase, std::map<std::string, unsigned long>* crcPairs)
         }
     }
 
-    result = -1;
+    result = 0;
 fail:
     return result;
 }
@@ -129,6 +129,8 @@ fail:
 
 int populateCrcMap(std::map<std::string, unsigned long>* crcPairs, std::map<std::string, unsigned long>* crcNet)
 {
+    uint32_t dbgInt = 0;
+
     for (auto i = crcPairs->begin(); i != crcPairs->end(); i++)
     {
         if (crcNet->find(i->first) == crcNet->end())
@@ -137,7 +139,12 @@ int populateCrcMap(std::map<std::string, unsigned long>* crcPairs, std::map<std:
         }
         else
         {
-            (*crcPairs)[i->first] = i->second;
+            dbgInt = (*crcNet)[i->first];
+            if (dbgInt != i->second)
+            {
+                printf("PATCHING: %s was 0x%lx, will now have kcrc 0x%x\n", i->first.data(), i->second, dbgInt);
+            }
+            (*crcPairs)[i->first] = (*crcNet)[i->first];
         }
     }
     return 0;
@@ -149,12 +156,13 @@ int grabElfFile(const char* fileTargName, void** allocBase, size_t* fSize)
     FILE* outFile = 0;
     size_t outfileSz = 0;
     size_t outfileSzPad = 0;
+    void* allocTmp = 0;
 
     outFile = fopen(fileTargName, "r");
     SAFE_BAIL(outFile == 0);
     
     fseek(outFile, 0, SEEK_END);
-    outfileSz = ftell(outFile);
+    outfileSzPad = outfileSz = ftell(outFile);
     fseek(outFile, 0, SEEK_SET);
 
     if ((outfileSz % PAGE_SIZE4K) != 0)

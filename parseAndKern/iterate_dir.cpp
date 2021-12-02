@@ -2,6 +2,9 @@
 #include <dirent.h>
 #include <vector>
 #include <string>
+#include <libgen.h>
+#include <string.h>
+
 #include "iterate_dir.h"
 
 #include <localUtil.h>
@@ -10,8 +13,14 @@ int get_libmodules(const char* libmod_path, std::vector<std::string>* driverName
 {
     struct dirent *de; // Pointer for directory entry
     int result = -1;
-    std::string targ_dir(libmod_path);
     std::string tmp_file;
+    char libmod_pathCpy[PATH_MAX] = { 0 };
+    std::string targ_dir;
+    
+    strcpy(libmod_pathCpy, libmod_path);
+    targ_dir = std::string(dirname((char*)libmod_pathCpy));
+    strcpy(libmod_pathCpy, libmod_path);
+    targ_dir += "/" + std::string(basename((char*)libmod_path));
 
     // opendir() returns a pointer of DIR type.
     DIR *dr = opendir(libmod_path);

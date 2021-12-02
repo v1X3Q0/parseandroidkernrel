@@ -165,20 +165,20 @@ fail:
 int kern_img::base_kcrctab()
 {
     int result = -1;
-    uint32_t* crcIter = (uint32_t*)(__ksymtab_strings_g);
+    uint32_t* crcIter = (uint32_t*)((size_t)__ksymtab_strings_g - sizeof(uint32_t));
     size_t crcCount = 0;
 
     while (true)
     {
-        crcCount++;
         if (*crcIter == *(crcIter - 2))
         {
-            crcCount-=2;
             crcIter++;
             __kcrctab = crcIter;
+            ksyms_count = crcCount;
             result = 0;
             break;
         }
+        crcCount++;
         crcIter--;
     }
 

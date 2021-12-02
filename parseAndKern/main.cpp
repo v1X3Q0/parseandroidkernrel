@@ -112,7 +112,7 @@ int main(int argc, char **argv)
 
     populateVers(drverBase, &versMap);
     
-    if ((ksymBase->name == 0) && (versMap.size() == 0))
+    if ((ksymBase == 0) || (ksymBase->name == 0))
     {
         populateCrcMap(&versMap, &vendor_crcs);
     }
@@ -125,7 +125,7 @@ int main(int argc, char **argv)
 
     drvoutTmp = fopen(newDriver, "w");
     fwrite(drverBase, 1, drvSize, drvoutTmp);
-    fclose(drvoutTmp);
+    printf("patched file %s\n", newDriver);
 fail:
     SAFE_DEL(parsedKernimg);
     SAFE_FCLOSE(drvoutTmp);
