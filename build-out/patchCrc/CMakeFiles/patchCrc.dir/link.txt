@@ -1,0 +1,1 @@
+/usr/bin/c++ -rdynamic CMakeFiles/patchCrc.dir/main.cpp.o CMakeFiles/patchCrc.dir/patchCrc.cpp.o CMakeFiles/patchCrc.dir/iterate_dir.cpp.o -o patchCrc  ../parseAndKern/libparseAndKern.a ../hde_armv8/libhdeA64.a ../c_reginst/libc_reginst.a ../local_util/liblocalUtil.a 

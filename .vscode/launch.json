@@ -2,20 +2,26 @@
     // Use IntelliSense to learn about possible attributes.
     // Hover to view descriptions of existing attributes.
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+
+    // "program": "${workspaceFolder}/build/parseAndKern/patchCrc",
+    // "-k",
+    // "/home/mariomain/Downloads/android-images/walleye-qq3a.200805.001/image-walleye-qq3a.200805.001/boot.img-extracted/kernelimage",
+    // "-i",
+    // "/media/mariomain/vendor/lib/modules",
+    // "-m",
+    // "/home/mariomain/repos/rwDrv/mychar.ko"
+
+
     "version": "0.2.0",
     "configurations": [
         {
             "name": "(gdb) Launch",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/parseAndKern/patchCrc",
+            "program": "${workspaceFolder}/build/ki_to_vmlinux/ki_to_vmlinux",
             "args": [
                 "-k",
-                "/home/mariomain/Downloads/android-images/walleye-qq3a.200805.001/image-walleye-qq3a.200805.001/boot.img-extracted/kernelimage",
-                "-i",
-                "/media/mariomain/vendor/lib/modules",
-                "-m",
-                "/home/mariomain/repos/rwDrv/mychar.ko"
+                "/home/mariomain/Downloads/android-images/walleye-qq3a.200805.001/image-walleye-qq3a.200805.001/boot.img-extracted/kernelimage"
             ],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",

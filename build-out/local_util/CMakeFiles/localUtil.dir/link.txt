@@ -1,0 +1,2 @@
+/usr/bin/ar qc liblocalUtil.a CMakeFiles/localUtil.dir/localUtil.cpp.o
+/usr/bin/ranlib liblocalUtil.a
