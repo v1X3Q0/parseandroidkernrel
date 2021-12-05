@@ -1,2 +1,0 @@
-/usr/bin/ar qc libc_reginst.a CMakeFiles/c_reginst.dir/opcOperand.cpp.o CMakeFiles/c_reginst.dir/ibeSet.cpp.o
-/usr/bin/ranlib libc_reginst.a

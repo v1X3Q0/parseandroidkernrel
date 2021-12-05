@@ -7,7 +7,9 @@ endif()
 
 add_definitions(-DDYN_DISASM)
 
+# includes
 include_directories(${ANDROID_TOOL_BASE}/common/hde_armv8 ${ANDROID_TOOL_BASE}/common/local_util ${ANDROID_TOOL_BASE}/common/c_reginst)
+include_directories(${ANDROID_TOOL_BASE}/linux/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/parseAndKern)
 
 add_subdirectory(${ANDROID_TOOL_BASE}/common/hde_armv8 ${CMAKE_BINARY_DIR}/hde_armv8)

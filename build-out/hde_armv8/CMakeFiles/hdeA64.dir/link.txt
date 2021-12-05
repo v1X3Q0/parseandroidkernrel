@@ -1,2 +1,0 @@
-/usr/bin/ar qc libhdeA64.a CMakeFiles/hdeA64.dir/hdeA64.cpp.o
-/usr/bin/ranlib libhdeA64.a

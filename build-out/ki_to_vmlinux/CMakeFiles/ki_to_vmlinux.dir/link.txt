@@ -1,1 +1,0 @@
-/usr/bin/c++ -rdynamic CMakeFiles/ki_to_vmlinux.dir/main.cpp.o -o ki_to_vmlinux  ../parseAndKern/libparseAndKern.a ../hde_armv8/libhdeA64.a ../c_reginst/libc_reginst.a ../local_util/liblocalUtil.a 

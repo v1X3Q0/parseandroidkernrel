@@ -1,2 +1,0 @@
-/usr/bin/ar qc libparseAndKern.a CMakeFiles/parseAndKern.dir/parseAndKern.cpp.o
-/usr/bin/ranlib libparseAndKern.a

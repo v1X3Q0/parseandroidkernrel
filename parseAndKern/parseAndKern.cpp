@@ -6,6 +6,7 @@
 #include <hdeA64.h>
 #include <ibeSet.h>
 #include <localUtil.h>
+#include "spare_vmlinux.h"
 #include "parseAndKern.h"
 
 int kern_img::grab_sinittext()
@@ -15,6 +16,38 @@ int kern_img::grab_sinittext()
     SAFE_BAIL(parseInst(*binBegin, &tempInst) == -1);
     _sinittext = (uint32_t*)(tempInst.immLarge + (size_t)binBegin);
 
+    result = 0;
+fail:
+    return result;
+}
+
+void kern_img::insert_section(std::string sec_name, uint16_t sh_type, uint64_t sh_flags,
+    uint64_t sh_addr, uint64_t sh_offset, uint64_t sh_size, uint16_t sh_link,
+    uint16_t sh_info, uint64_t sh_addralign, uint64_t sh_entsize)
+{
+    sect_list[sec_name] = { 0, sh_type, sh_flags, sh_addr, sh_offset, sh_size, sh_link,
+        sh_info, sh_addralign, sh_entsize };    
+}
+
+int kern_img::base_inits()
+{
+    int result = -1;
+    instSet getB;
+    uint32_t* text_start = 0;
+
+    FINISH_IF((check_sect(".head.text", NULL) == 0) &&
+        (check_sect(".text", NULL) == 0) && (check_sect(".init.text", NULL) == 0));
+
+    insert_section(".head.text", 0, 0, (uint64_t)binBegin, (uint64_t)binBegin, 0, 0, 0, 8, 0);
+    
+    getB.addNewInst(cOperand::createASI<size_t, size_t, saveVar_t*>(SP, SP, getB.checkOperand(0)));
+    SAFE_BAIL(getB.findPattern(binBegin, PAGE_SIZE * 4, &text_start) == -1);
+    sect_list[".head.text"].sh_size = (size_t)text_start - (size_t)binBegin;
+    insert_section(".text", 0, 0, (uint64_t)text_start, (uint64_t)text_start, 0, 0, 0, 8, 0);
+
+    insert_section(".init.text", 0, 0, (uint64_t)_sinittext, (uint64_t)_sinittext, 0, 0, 0, 8, 0);
+
+finish:
     result = 0;
 fail:
     return result;
@@ -78,19 +111,17 @@ fail:
     return result;
 }
 
-int kern_img::grab_start_kernel_g()
+int kern_img::base_modverparam()
 {
     int result = -1;
     instSet getB;
-    size_t start_kernelOff = 0;
     uint32_t* modverAddr = 0;
     size_t modverOff = 0;
+    size_t modvertmp = 0;
+    size_t paramtmp = 0;
 
-    getB.addNewInst(cOperand::createB<saveVar_t*>(getB.checkOperand(0)));
-    SAFE_BAIL(getB.findPattern(__primary_switched, PAGE_SIZE, &start_kernel) == -1);
-
-    getB.getVar(0, &start_kernelOff);
-    start_kernel = (uint32_t*)(start_kernelOff + (size_t)start_kernel);
+    // check if we already have what we are looking for
+    FINISH_IF((check_sect("__modver", NULL) == 0) && (check_sect("__param", NULL) == 0));
 
     getB.clearInternals();
     getB.addNewInst(cOperand::createADRP<saveVar_t*, saveVar_t*>(getB.checkOperand(0), getB.checkOperand(1)));
@@ -101,16 +132,40 @@ int kern_img::grab_start_kernel_g()
 
     SAFE_BAIL(getB.findPattern(start_kernel, PAGE_SIZE, &modverAddr) == -1);
 
-    getB.getVar(3, &modverOff);    
-    __modver = modverOff + ((size_t)(modverAddr + sizeof(uint32_t)) & ~PAGE_MASK);
+    getB.getVar(3, &modverOff);
+    modvertmp = modverOff + ((size_t)(modverAddr + sizeof(uint32_t)) & ~PAGE_MASK);
     getB.getVar(5, &modverOff);
-    __modver += modverOff;
+    modvertmp += modverOff;
+    insert_section("__modver", 0, 0, (uint64_t)modvertmp, (uint64_t)modvertmp, 0, 0, 0, 8, 0);
 
     getB.getVar(1, &modverOff);
-    __param = modverOff + ((size_t)(modverAddr) & ~PAGE_MASK);
+    paramtmp = modverOff + ((size_t)(modverAddr) & ~PAGE_MASK);
     getB.getVar(4, &modverOff);
-    __param += modverOff;
+    paramtmp += modverOff;
+    insert_section("__param", 0, 0, (uint64_t)paramtmp, (uint64_t)paramtmp, modvertmp - paramtmp, 0, 0, 8, 0);
 
+    base_ex_table();
+    sect_list["__modver"].sh_size = sect_list["__ex_table"].sh_addr - modvertmp;
+
+finish:
+    result = 0;
+fail:
+    return result;
+}
+
+int kern_img::grab_start_kernel_g()
+{
+    int result = -1;
+    instSet getB;
+    size_t start_kernelOff = 0;
+
+    getB.addNewInst(cOperand::createB<saveVar_t*>(getB.checkOperand(0)));
+    SAFE_BAIL(getB.findPattern(__primary_switched, PAGE_SIZE, &start_kernel) == -1);
+
+    getB.getVar(0, &start_kernelOff);
+    start_kernel = (uint32_t*)(start_kernelOff + (size_t)start_kernel);
+
+finish:
     result = 0;
 fail:
     return result;
@@ -128,10 +183,18 @@ int kern_img::base_ksymtab_strings()
     const char targSymName[] = "system_state";
     size_t targSymLen = strlen(targSymName);
     const char* targSymEnd = (const char*)((size_t)targSymName + targSymLen - 1);
+    Elf64_Shdr* paramSec = 0;
+    size_t ksymtabstr_tmp = 0;
 
-    offsetTmp = rfindnn((const char*)__param, DEFAULT_SEARCH_SIZE);
+    // check if kcrc already exists
+    FINISH_IF(check_sect("__ksymtab_strings", NULL) == 0);
+
+    // grab the base that i need
+    SAFE_BAIL(check_sect("__param", &paramSec) == -1);
+
+    offsetTmp = rfindnn((const char*)paramSec->sh_addr, DEFAULT_SEARCH_SIZE);
     SAFE_BAIL(offsetTmp == -1);
-    curStr = (const char*)(__param - offsetTmp);
+    curStr = (const char*)(paramSec->sh_addr - offsetTmp);
     dbgCounter = offsetTmp;
 
     while (dbgCounter < ksymAssumeSize)
@@ -140,9 +203,7 @@ int kern_img::base_ksymtab_strings()
         // strncmp("static_key_initialized", cmpStr, DEFAULT_SEARCH_SIZE)
         if (rstrncmp(curStr, targSymEnd, targSymLen) == 0)
         {
-            __ksymtab_strings_g = curStr - targSymLen + 1;
-            result = 0;
-            break;
+            goto finish_eval;
         }
         offsetTmp = rstrnlen(curStr, DEFAULT_SEARCH_SIZE);
         SAFE_BAIL(offsetTmp == -1);
@@ -157,7 +218,13 @@ int kern_img::base_ksymtab_strings()
         curStr -= 1;
         dbgCounter += offsetTmp;
     }
+    goto fail;
 
+finish_eval:
+    ksymtabstr_tmp = (size_t)(curStr - targSymLen + 1);
+    insert_section("__ksymtab_strings", 0, 0, (uint64_t)ksymtabstr_tmp, (uint64_t)ksymtabstr_tmp, paramSec->sh_addr - ksymtabstr_tmp, 0, 0, 8, 0);
+finish:
+    result = 0;
 fail:
     return result;
 }
@@ -165,23 +232,37 @@ fail:
 int kern_img::base_kcrctab()
 {
     int result = -1;
-    uint32_t* crcIter = (uint32_t*)((size_t)__ksymtab_strings_g - sizeof(uint32_t));
     size_t crcCount = 0;
+    uint32_t* crcIter = 0;
+    Elf64_Shdr* ksymtabStr = 0;
+
+    // check if kcrc already exists
+    FINISH_IF(check_sect("__kcrctab", NULL) == 0);
+
+    // grab the base that i need
+    SAFE_BAIL(check_sect("__ksymtab_strings", &ksymtabStr) == -1);
+
+    crcIter = (uint32_t*)((size_t)ksymtabStr->sh_addr - sizeof(uint32_t));
 
     while (true)
     {
         if (*crcIter == *(crcIter - 2))
         {
-            crcIter++;
-            __kcrctab = crcIter;
-            ksyms_count = crcCount;
-            result = 0;
-            break;
+            goto finish_eval;
         }
         crcCount++;
         crcIter--;
     }
+    goto fail;
 
+finish_eval:
+    crcIter++;
+    insert_section("__kcrctab", 0, 0, (uint64_t)crcIter, (uint64_t)crcIter, 0, 0, 0, 8, 0);
+    sect_list["__kcrctab"].sh_size = sect_list["__ksymtab_strings"].sh_addr - (size_t)crcIter;
+    ksyms_count = crcCount;
+finish:
+    result = 0;
+fail:
     return result;
 }
 
@@ -193,10 +274,19 @@ int kern_img::base_ksymtab()
     // as well as arguments, lets give them a looksie....
 
     int result = -1;
-    
-    SAFE_BAIL(__kcrctab == 0);
+    size_t ksymtabTmp = 0;
+    Elf64_Shdr* crcSec = 0;
+
+    // check if ksymtab already exists
+    FINISH_IF(check_sect("__ksymtab", NULL) == 0);
+
+    // grab the base that i need
+    SAFE_BAIL(check_sect("__kcrctab", &crcSec) == -1);
+
     SAFE_BAIL(ksyms_count == 0);
-    __ksymtab = (kernel_symbol*)((size_t)__kcrctab - sizeof(kernel_symbol) * ksyms_count);
+    ksymtabTmp = (crcSec->sh_addr - sizeof(kernel_symbol) * ksyms_count);
+    insert_section("__ksymtab", 0, 0, (uint64_t)ksymtabTmp, (uint64_t)ksymtabTmp, 0, 0, 0, 8, 0);
+
     // instSet getB;
     // size_t start_kernelOff = 0;
     // uint32_t* modverAddr = 0;
@@ -216,23 +306,56 @@ int kern_img::base_ksymtab()
     // getB.addNewInst(cOperand::createASI<saveVar_t*, saveVar_t*, saveVar_t*>(getB.checkOperand(2), getB.checkOperand(2), getB.checkOperand(5)));
     // getB.addNewInst(cOperand::createLI<saveVar_t*, size_t, size_t, size_t>(getB.checkOperand(6), X31,  0x39, 0x3));
 
+finish:
     result = 0;
 fail:
     return result;
 }
 
+std::string kern_img::gen_shstrtab()
+{
+    std::string shstrtabTmp = "\000";
+    
+    for (auto i = sect_list.begin(); i != sect_list.end(); i++)
+    {
+        shstrtabTmp += i->first + "\000";
+    }
+
+    return shstrtabTmp;
+}
+
+int kern_img::gen_vmlinux_sz(size_t* outSz, size_t headOffset)
+{
+    size_t szTemp = 0;
+    std::string shstrtab_tmp;
+
+    // szTemp += sizeof(Elf64_Ehdr) + sizeof(Elf64_Phdr);
+    // szTemp += PAGE_SIZE;
+    szTemp += headOffset;
+    szTemp += kern_sz;
+    
+    // generate shstrtab
+    shstrtab_tmp = gen_shstrtab();
+    szTemp += shstrtab_tmp.size();
+    szTemp += (sect_list.size() * sizeof(Elf64_Shdr));
+
+    return 0;
+}
+
 int kern_img::findKindInKstr(const char* newString, int* index)
 {
-    const char* strIter = __ksymtab_strings_g;
+    const char* strIter = 0;
+    Elf64_Shdr* ksymstrSec = 0;
     int result = -1;
+    int i = 0;
 
-    for (int i = 0; i < ksyms_count; i++)
+    SAFE_BAIL(check_sect("__ksymtab_strings", &ksymstrSec) == -1);
+
+    for (; i < ksyms_count; i++)
     {
         if (strcmp(newString, strIter) == 0)
         {
-            result = 0;
-            *index = i;
-            break;
+            goto finish_eval;
         }
         if (*(uint16_t*)(strIter + strlen(strIter)) == 0)
         {
@@ -240,6 +363,102 @@ int kern_img::findKindInKstr(const char* newString, int* index)
         }
         strIter = strIter + strlen(strIter) + 1;
     }
+
+    goto fail;
+finish_eval:
+    *index = i;
+finish:
+    result = 0;
+fail:
+    return result;
+}
+
+int kern_img::check_sect(std::string sect_name, Elf64_Shdr** sect_out)
+{
+    int result = -1;
+
+    SAFE_BAIL(sect_list.find(sect_name) == sect_list.end());
+
+    if (sect_out != 0)
+    {
+        *sect_out = &sect_list[sect_name];
+    }
+
+    result = 0;
+fail:
+    return result;
+}
+
+int kern_img::base_modver()
+{
+    int result = -1;
+    kernel_param* paramIter = 0;
+    Elf64_Shdr* paramSec = 0;
+
+    // check if modver already exists
+    SAFE_BAIL(check_sect("__modver", NULL) == -1);
+
+    // grab the base that i need
+    SAFE_BAIL(check_sect("__param", &paramSec) == -1);
+
+    paramIter = (kernel_param*)paramSec->sh_addr;
+
+    while (paramIter->perm)
+    {
+        paramIter++;
+    }
+
+    insert_section("__modver", 0, 0, (uint64_t)paramIter, (uint64_t)paramIter, 0, 0, 0, 8, 0);
+    base_ex_table();
+    sect_list["__modver"].sh_size = sect_list["__ex_table"].sh_addr - (size_t)paramIter;
+
+    result = 0;
+fail:
+    return result;
+}
+
+int kern_img::base_ex_table()
+{
+    int result = -1;
+    void** modverIter = 0;
+    Elf64_Shdr* modverSec = 0;
+    Elf64_Shdr* inittextSec = 0;
+    size_t ex_tableSz = 0;
+
+    FINISH_IF(check_sect("__ex_table", NULL) == 0);
+
+    SAFE_BAIL(check_sect("__modver", &modverSec) == -1);
+    SAFE_BAIL(check_sect(".init.text", &inittextSec) == -1);
+
+    modverIter = (void**)modverSec->sh_addr;
+
+    while (*modverIter)
+    {
+        modverIter++;
+    }
+
+    ex_tableSz = inittextSec->sh_addr - (uint64_t)modverIter;
+
+    insert_section("__ex_table", 0, 0, (uint64_t)modverIter, (uint64_t)modverIter, ex_tableSz, 0, 0, 8, 0);
+
+finish:
+    result = 0;
+fail:
+    return result;
+}
+
+int kern_img::patch_and_write(void* vmlinux_cur, size_t offset)
+{
+    int result = -1;
+
+    for (auto i = sect_list.begin(); i != sect_list.end(); i++)
+    {
+        i->second.sh_offset += offset;
+        memcpy(vmlinux_cur, &i->second, sizeof(Elf64_Shdr));
+        vmlinux_cur = (void*)((size_t)vmlinux_cur + sizeof(Elf64_Shdr));
+    }
+
+    result = 0;
     return result;
 }
 
@@ -253,12 +472,15 @@ int kern_img::parseAndGetGlobals()
     SAFE_BAIL(grab_primary_switch() == -1);
     SAFE_BAIL(grab_primary_switched() == -1);
     SAFE_BAIL(grab_start_kernel_g() == -1);
+
+    SAFE_BAIL(base_inits());
     SAFE_BAIL(base_ksymtab_strings() == -1);
     SAFE_BAIL(base_kcrctab() == -1);
     SAFE_BAIL(base_ksymtab() == -1);
+    SAFE_BAIL(base_ex_table() == -1);
 
     SAFE_BAIL(findKindInKstr("printk", &snprintfInd) == -1);
-    snprintfCrc = __kcrctab[snprintfInd];
+    snprintfCrc = get_kcrctab()[snprintfInd];
 
     result = 0;
 fail:

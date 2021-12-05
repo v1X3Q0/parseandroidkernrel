@@ -5,6 +5,8 @@
 
 build
 out
+build-out
+
 
 # Node artifact files
 node_modules/
