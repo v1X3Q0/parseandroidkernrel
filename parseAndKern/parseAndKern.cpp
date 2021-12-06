@@ -38,14 +38,14 @@ int kern_img::base_inits()
     FINISH_IF((check_sect(".head.text", NULL) == 0) &&
         (check_sect(".text", NULL) == 0) && (check_sect(".init.text", NULL) == 0));
 
-    insert_section(".head.text", 0, 0, (uint64_t)binBegin, (uint64_t)binBegin, 0, 0, 0, 8, 0);
+    insert_section(".head.text", 0, 0, RESOLVE_REL(binBegin), RESOLVE_REL(binBegin), 0, 0, 0, 8, 0);
     
     getB.addNewInst(cOperand::createASI<size_t, size_t, saveVar_t*>(SP, SP, getB.checkOperand(0)));
     SAFE_BAIL(getB.findPattern(binBegin, PAGE_SIZE * 4, &text_start) == -1);
     sect_list[".head.text"].sh_size = (size_t)text_start - (size_t)binBegin;
-    insert_section(".text", 0, 0, (uint64_t)text_start, (uint64_t)text_start, 0, 0, 0, 8, 0);
+    insert_section(".text", 0, 0, RESOLVE_REL(text_start), RESOLVE_REL(text_start), 0, 0, 0, 8, 0);
 
-    insert_section(".init.text", 0, 0, (uint64_t)_sinittext, (uint64_t)_sinittext, 0, 0, 0, 8, 0);
+    insert_section(".init.text", 0, 0, RESOLVE_REL(_sinittext), RESOLVE_REL(_sinittext), 0, 0, 0, 8, 0);
 
 finish:
     result = 0;
@@ -111,6 +111,11 @@ fail:
     return result;
 }
 
+size_t kern_img::resolveRel(size_t rebase)
+{
+    return rebase - (size_t)binBegin;
+}
+
 int kern_img::base_modverparam()
 {
     int result = -1;
@@ -136,16 +141,16 @@ int kern_img::base_modverparam()
     modvertmp = modverOff + ((size_t)(modverAddr + sizeof(uint32_t)) & ~PAGE_MASK);
     getB.getVar(5, &modverOff);
     modvertmp += modverOff;
-    insert_section("__modver", 0, 0, (uint64_t)modvertmp, (uint64_t)modvertmp, 0, 0, 0, 8, 0);
+    insert_section("__modver", 0, 0, RESOLVE_REL(modvertmp), RESOLVE_REL(modvertmp), 0, 0, 0, 8, 0);
 
     getB.getVar(1, &modverOff);
     paramtmp = modverOff + ((size_t)(modverAddr) & ~PAGE_MASK);
     getB.getVar(4, &modverOff);
     paramtmp += modverOff;
-    insert_section("__param", 0, 0, (uint64_t)paramtmp, (uint64_t)paramtmp, modvertmp - paramtmp, 0, 0, 8, 0);
+    insert_section("__param", 0, 0, RESOLVE_REL(paramtmp), RESOLVE_REL(paramtmp), modvertmp - paramtmp, 0, 0, 8, 0);
 
     base_ex_table();
-    sect_list["__modver"].sh_size = sect_list["__ex_table"].sh_addr - modvertmp;
+    sect_list["__modver"].sh_size = UNRESOLVE_REL(sect_list["__ex_table"].sh_addr) - modvertmp;
 
 finish:
     result = 0;
@@ -192,9 +197,9 @@ int kern_img::base_ksymtab_strings()
     // grab the base that i need
     SAFE_BAIL(check_sect("__param", &paramSec) == -1);
 
-    offsetTmp = rfindnn((const char*)paramSec->sh_addr, DEFAULT_SEARCH_SIZE);
+    offsetTmp = rfindnn((const char*)UNRESOLVE_REL(paramSec->sh_addr), DEFAULT_SEARCH_SIZE);
     SAFE_BAIL(offsetTmp == -1);
-    curStr = (const char*)(paramSec->sh_addr - offsetTmp);
+    curStr = (const char*)(UNRESOLVE_REL(paramSec->sh_addr) - offsetTmp);
     dbgCounter = offsetTmp;
 
     while (dbgCounter < ksymAssumeSize)
@@ -222,7 +227,7 @@ int kern_img::base_ksymtab_strings()
 
 finish_eval:
     ksymtabstr_tmp = (size_t)(curStr - targSymLen + 1);
-    insert_section("__ksymtab_strings", 0, 0, (uint64_t)ksymtabstr_tmp, (uint64_t)ksymtabstr_tmp, paramSec->sh_addr - ksymtabstr_tmp, 0, 0, 8, 0);
+    insert_section("__ksymtab_strings", 0, 0, RESOLVE_REL(ksymtabstr_tmp), RESOLVE_REL(ksymtabstr_tmp), UNRESOLVE_REL(paramSec->sh_addr) - ksymtabstr_tmp, 0, 0, 8, 0);
 finish:
     result = 0;
 fail:
@@ -242,7 +247,7 @@ int kern_img::base_kcrctab()
     // grab the base that i need
     SAFE_BAIL(check_sect("__ksymtab_strings", &ksymtabStr) == -1);
 
-    crcIter = (uint32_t*)((size_t)ksymtabStr->sh_addr - sizeof(uint32_t));
+    crcIter = (uint32_t*)(UNRESOLVE_REL(ksymtabStr->sh_addr) - sizeof(uint32_t));
 
     while (true)
     {
@@ -257,8 +262,8 @@ int kern_img::base_kcrctab()
 
 finish_eval:
     crcIter++;
-    insert_section("__kcrctab", 0, 0, (uint64_t)crcIter, (uint64_t)crcIter, 0, 0, 0, 8, 0);
-    sect_list["__kcrctab"].sh_size = sect_list["__ksymtab_strings"].sh_addr - (size_t)crcIter;
+    insert_section("__kcrctab", 0, 0, RESOLVE_REL(crcIter), RESOLVE_REL(crcIter), 0, 0, 0, 8, 0);
+    sect_list["__kcrctab"].sh_size = UNRESOLVE_REL(sect_list["__ksymtab_strings"].sh_addr) - (size_t)crcIter;
     ksyms_count = crcCount;
 finish:
     result = 0;
@@ -284,8 +289,8 @@ int kern_img::base_ksymtab()
     SAFE_BAIL(check_sect("__kcrctab", &crcSec) == -1);
 
     SAFE_BAIL(ksyms_count == 0);
-    ksymtabTmp = (crcSec->sh_addr - sizeof(kernel_symbol) * ksyms_count);
-    insert_section("__ksymtab", 0, 0, (uint64_t)ksymtabTmp, (uint64_t)ksymtabTmp, 0, 0, 0, 8, 0);
+    ksymtabTmp = (UNRESOLVE_REL(crcSec->sh_addr) - sizeof(kernel_symbol) * ksyms_count);
+    insert_section("__ksymtab", 0, 0, RESOLVE_REL(ksymtabTmp), RESOLVE_REL(ksymtabTmp), 0, 0, 0, 8, 0);
 
     // instSet getB;
     // size_t start_kernelOff = 0;
@@ -312,22 +317,45 @@ fail:
     return result;
 }
 
-std::string kern_img::gen_shstrtab()
+int kern_img::gen_shstrtab(std::string** out_shstrtab, uint16_t* numSects, uint16_t* shstrtab_index)
 {
-    std::string shstrtabTmp = "\000";
+    std::string shstrtabTmp = "";
+    shstrtabTmp += '\0';
+    uint16_t sect_iter = 0;
+    uint16_t str_index = 0;
     
     for (auto i = sect_list.begin(); i != sect_list.end(); i++)
     {
-        shstrtabTmp += i->first + "\000";
+        i->second.sh_name = shstrtabTmp.size();
+        shstrtabTmp = shstrtabTmp + i->first + '\0';
+        if (i->first == ".shstrtab")
+        {
+            str_index = sect_iter;
+        }
+        sect_iter++;
     }
 
-    return shstrtabTmp;
+finish:
+    if (out_shstrtab != 0)
+    {
+        *out_shstrtab = new std::string(shstrtabTmp);
+    }
+    if (numSects != 0)
+    {
+        *numSects = sect_iter;
+    }
+    if (shstrtab_index != 0)
+    {
+        *shstrtab_index = str_index;
+    }
+
+    return 0;
 }
 
 int kern_img::gen_vmlinux_sz(size_t* outSz, size_t headOffset)
 {
     size_t szTemp = 0;
-    std::string shstrtab_tmp;
+    std::string* shstrtab_tmp;
 
     // szTemp += sizeof(Elf64_Ehdr) + sizeof(Elf64_Phdr);
     // szTemp += PAGE_SIZE;
@@ -335,10 +363,11 @@ int kern_img::gen_vmlinux_sz(size_t* outSz, size_t headOffset)
     szTemp += kern_sz;
     
     // generate shstrtab
-    shstrtab_tmp = gen_shstrtab();
-    szTemp += shstrtab_tmp.size();
+    gen_shstrtab(&shstrtab_tmp, NULL, NULL);
+    szTemp += shstrtab_tmp->size();
     szTemp += (sect_list.size() * sizeof(Elf64_Shdr));
 
+    *outSz = szTemp;
     return 0;
 }
 
@@ -350,6 +379,7 @@ int kern_img::findKindInKstr(const char* newString, int* index)
     int i = 0;
 
     SAFE_BAIL(check_sect("__ksymtab_strings", &ksymstrSec) == -1);
+    strIter = (const char*)UNRESOLVE_REL(ksymstrSec->sh_addr);
 
     for (; i < ksyms_count; i++)
     {
@@ -401,16 +431,16 @@ int kern_img::base_modver()
     // grab the base that i need
     SAFE_BAIL(check_sect("__param", &paramSec) == -1);
 
-    paramIter = (kernel_param*)paramSec->sh_addr;
+    paramIter = (kernel_param*)UNRESOLVE_REL(paramSec->sh_addr);
 
     while (paramIter->perm)
     {
         paramIter++;
     }
 
-    insert_section("__modver", 0, 0, (uint64_t)paramIter, (uint64_t)paramIter, 0, 0, 0, 8, 0);
+    insert_section("__modver", 0, 0, RESOLVE_REL(paramIter), RESOLVE_REL(paramIter), 0, 0, 0, 8, 0);
     base_ex_table();
-    sect_list["__modver"].sh_size = sect_list["__ex_table"].sh_addr - (size_t)paramIter;
+    sect_list["__modver"].sh_size = UNRESOLVE_REL(sect_list["__ex_table"].sh_addr) - (size_t)paramIter;
 
     result = 0;
 fail:
@@ -430,16 +460,16 @@ int kern_img::base_ex_table()
     SAFE_BAIL(check_sect("__modver", &modverSec) == -1);
     SAFE_BAIL(check_sect(".init.text", &inittextSec) == -1);
 
-    modverIter = (void**)modverSec->sh_addr;
+    modverIter = (void**)UNRESOLVE_REL(modverSec->sh_addr);
 
     while (*modverIter)
     {
         modverIter++;
     }
 
-    ex_tableSz = inittextSec->sh_addr - (uint64_t)modverIter;
+    ex_tableSz = UNRESOLVE_REL(inittextSec->sh_addr) - (uint64_t)modverIter;
 
-    insert_section("__ex_table", 0, 0, (uint64_t)modverIter, (uint64_t)modverIter, ex_tableSz, 0, 0, 8, 0);
+    insert_section("__ex_table", 0, 0, RESOLVE_REL(modverIter), RESOLVE_REL(modverIter), ex_tableSz, 0, 0, 8, 0);
 
 finish:
     result = 0;
@@ -462,6 +492,16 @@ int kern_img::patch_and_write(void* vmlinux_cur, size_t offset)
     return result;
 }
 
+int kern_img::base_new_shstrtab()
+{
+    char strtabRef[] = ".shstrtab";
+    std::string* shtstrtab_tmp = 0;
+
+    gen_shstrtab(&shtstrtab_tmp, NULL, NULL);
+    insert_section(strtabRef, SHT_STRTAB, 0, kern_sz, kern_sz, shtstrtab_tmp->size() + sizeof(strtabRef), 0, 0, 1, 0);
+    return 0;
+}
+
 int kern_img::parseAndGetGlobals()
 {
     int result = -1;
@@ -473,11 +513,13 @@ int kern_img::parseAndGetGlobals()
     SAFE_BAIL(grab_primary_switched() == -1);
     SAFE_BAIL(grab_start_kernel_g() == -1);
 
-    SAFE_BAIL(base_inits());
+    SAFE_BAIL(base_inits() == -1);
+    SAFE_BAIL(base_modverparam() == -1);
     SAFE_BAIL(base_ksymtab_strings() == -1);
     SAFE_BAIL(base_kcrctab() == -1);
     SAFE_BAIL(base_ksymtab() == -1);
     SAFE_BAIL(base_ex_table() == -1);
+    SAFE_BAIL(base_new_shstrtab() == -1);
 
     SAFE_BAIL(findKindInKstr("printk", &snprintfInd) == -1);
     snprintfCrc = get_kcrctab()[snprintfInd];

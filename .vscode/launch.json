@@ -11,6 +11,7 @@
     // "-m",
     // "/home/mariomain/repos/rwDrv/mychar.ko"
 
+    // "/home/mariomain/Downloads/android-images/walleye-qq3a.200805.001/image-walleye-qq3a.200805.001/boot.img-extracted/kernelimage"
 
     "version": "0.2.0",
     "configurations": [
@@ -18,10 +19,12 @@
             "name": "(gdb) Launch",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/ki_to_vmlinux/ki_to_vmlinux",
+            "program": "${workspaceFolder}/build/patchCrc/patchCrc",
             "args": [
-                "-k",
-                "/home/mariomain/Downloads/android-images/walleye-qq3a.200805.001/image-walleye-qq3a.200805.001/boot.img-extracted/kernelimage"
+                "-i",
+                "/media/mariomain/vendor/lib/modules",
+                "-m",
+                "/home/mariomain/repos/rwDrv/mychar.ko"
             ],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",

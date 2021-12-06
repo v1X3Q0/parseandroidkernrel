@@ -95,15 +95,16 @@ int main(int argc, char **argv)
     }
     else if (kernimg_targ != 0)
     {
-        SAFE_BAIL(vendorimg_path == 0);
-        SAFE_BAIL(get_libmodules(vendorimg_path, &vendorimg_names) == -1);
-        symvers_modules(&vendorimg_names, &vendor_crcs);
-        SAFE_BAIL(block_grab(kernimg_targ, (void**)&kernimgBase, NULL) == -1);
-        parsedKernimg = new kern_img((uint32_t*)kernimgBase);
+        parsedKernimg = kern_img::allocate_kern_img(kernimg_targ);
+        SAFE_BAIL(parsedKernimg == 0);
         ksymBase = parsedKernimg->get_ksymtab();
         ksymCount = parsedKernimg->get_ksyms_count();
         kcrcBase = parsedKernimg->get_kcrctab();
     }
+
+    SAFE_BAIL(vendorimg_path == 0);
+    SAFE_BAIL(get_libmodules(vendorimg_path, &vendorimg_names) == -1);
+    symvers_modules(&vendorimg_names, &vendor_crcs);
 
     SAFE_BAIL(newDriver == 0);
     SAFE_BAIL(block_grab(newDriver, (void**)&drverBase, &drvSize) == -1);

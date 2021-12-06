@@ -4,6 +4,8 @@
 #include <string.h>
 #include <elf.h>
 #include <vector>
+#include <libgen.h>
+#include <linux/limits.h>
 
 #include <hdeA64.h>
 #include <ibeSet.h>
@@ -25,40 +27,71 @@ void elfConstruction(Elf64_Ehdr* elfHead)
     elfHead->e_ident[EI_CLASS] = ELFCLASS64;
     elfHead->e_ident[EI_DATA] = ELFDATA2LSB;
     elfHead->e_ident[EI_VERSION] = EV_CURRENT;
+
     elfHead->e_type = ET_DYN;
     elfHead->e_machine = EM_AARCH64;
     elfHead->e_version = EV_CURRENT;
     elfHead->e_entry = ANDROID_KERNBASE;
     elfHead->e_phoff = sizeof(Elf64_Ehdr);
+    // elfHead->e_shoff
+    elfHead->e_flags = 0x602;
+    elfHead->e_ehsize = sizeof(Elf64_Ehdr);
     elfHead->e_phentsize = sizeof(Elf64_Phdr);
+    // elfHead->e_phnum
     elfHead->e_shentsize = sizeof(Elf64_Shdr);
+    // elfHead->e_shnum
 }
 
-void progHeadConstruction(Elf64_Phdr* phHead)
+std::vector<Elf64_Phdr> g_phArray;
+
+void insert_phdr(Elf64_Word p_type, Elf64_Word p_flags, Elf64_Off p_offset,
+    Elf64_Addr p_vaddr, Elf64_Addr p_paddr, Elf64_Xword p_filesz, Elf64_Xword p_memsz,
+    Elf64_Xword p_align)
+{
+    g_phArray.push_back({p_type, p_flags, p_offset, p_vaddr, p_vaddr, p_filesz, p_memsz,
+        p_align});
+}
+
+void patch_and_write_phdr(Elf64_Phdr* vmlinux_phBase, std::vector<Elf64_Phdr>* phArray)
+{
+    for (auto i = phArray->begin(); i != phArray->end(); i++)
+    {
+        memcpy(vmlinux_phBase, &(*i), sizeof(Elf64_Phdr));
+    }
+}
+
+void progHeadConstruction(Elf64_Phdr* phHead, size_t imageSz)
 {
     memset(phHead, 0, sizeof(Elf64_Phdr));
     phHead->p_type = PT_LOAD;
-    phHead->p_offset = PAGE_SIZE;
     phHead->p_vaddr = ANDROID_KERNBASE;
     phHead->p_paddr = ANDROID_KERNBASE;
     phHead-> p_flags = PF_X | PF_W | PF_R;
     phHead->p_align = 0x10000;
+    phHead->p_filesz = imageSz;
+    phHead->p_memsz = imageSz;
+    phHead->p_offset = PAGE_SIZE4K;
 }
 
 int main(int argc, char **argv)
 {
+    int result = -1;
     const char* vmlinux_targ = 0;
     const char* kernimg_targ = 0;
-    char *vmlinuxBase = 0;
+    Elf64_Ehdr* vmlinuxBase = 0;
     char *kernimgBase = 0;
     size_t vmlinux_sz;
+    char vmlinux_dir_copy[PATH_MAX] = { 0 };
+    std::string vmlinux_dir_made;
+    FILE* out_vmlinux = 0;
 
     kernel_symbol* ksymBase = 0;
     size_t ksymCount = 0;
     uint32_t* kcrcBase = 0;
     kern_img* parsedKernimg = 0;
+    Elf64_Phdr* phdrBase = 0;
     
-    std::string shstrtab_tmp;
+    std::string* shstrtab_tmp;
     void* vmlinux_iter = 0;
 
     int opt = 0;
@@ -80,34 +113,63 @@ int main(int argc, char **argv)
         }
     }
 
-    parsedKernimg = new kern_img(kernimg_targ);
+    SAFE_BAIL(kernimg_targ == 0);
+    if (vmlinux_targ == 0)
+    {
+        strcpy(vmlinux_dir_copy, kernimg_targ);
+        dirname(vmlinux_dir_copy);
+        vmlinux_dir_made = vmlinux_dir_copy;
+        vmlinux_dir_made += "/vmlinux";
+        vmlinux_targ = vmlinux_dir_made.data();
+    }
+
+    parsedKernimg = kern_img::allocate_kern_img(kernimg_targ);
+    SAFE_BAIL(parsedKernimg == 0);
 
     // alloc outfile
     parsedKernimg->gen_vmlinux_sz(&vmlinux_sz, PAGE_SIZE);
-    posix_memalign((void**)&vmlinuxBase, PAGE_SIZE4K, vmlinux_sz);
+
+    if ((vmlinux_sz % PAGE_MASK4K) != 0)
+    {
+        vmlinux_sz = (vmlinux_sz + PAGE_SIZE4K) & ~PAGE_MASK4K;
+    }
+    result = posix_memalign((void**)&vmlinuxBase, PAGE_SIZE4K, vmlinux_sz);
+    SAFE_BAIL(vmlinuxBase == 0);
 
     // write elf header to the new vmlinux
-    elfConstruction((Elf64_Ehdr*)vmlinuxBase);
-    vmlinux_iter = (void*)(vmlinuxBase + sizeof(Elf64_Ehdr));
+    elfConstruction(vmlinuxBase);
+    vmlinux_iter = (void*)((size_t)vmlinuxBase + sizeof(Elf64_Ehdr));
 
     // write the new program header to the new vmlinux
-    progHeadConstruction((Elf64_Phdr*)vmlinux_iter);
-    vmlinux_iter = vmlinuxBase + PAGE_SIZE;
+    insert_phdr(PT_LOAD, PF_X | PF_W | PF_R, PAGE_SIZE4K, ANDROID_KERNBASE, ANDROID_KERNBASE,
+        parsedKernimg->get_kernimg_sz(), parsedKernimg->get_kernimg_sz(), 0x10000);
+    patch_and_write_phdr((Elf64_Phdr*)vmlinux_iter, &g_phArray);
+    vmlinux_iter = (void*)((size_t)vmlinuxBase + PAGE_SIZE);
 
     // write the kernel image itself to the new vmlinux
     kernimgBase = (char*)vmlinux_iter;
-    memcpy(vmlinux_iter, kernimg_targ, parsedKernimg->get_kernimg_sz());
-    vmlinux_iter = (void*)(vmlinux_iter + parsedKernimg->get_kernimg_sz());
+    memcpy(vmlinux_iter, parsedKernimg->get_binbegin(), parsedKernimg->get_kernimg_sz());
+    vmlinux_iter = (void*)((size_t)vmlinux_iter + parsedKernimg->get_kernimg_sz());
     
     // write the new shstrtab to vmlinux
-    shstrtab_tmp = parsedKernimg->gen_shstrtab();
-    memcpy(vmlinux_iter, shstrtab_tmp.data(), shstrtab_tmp.size());
-    vmlinux_iter = (void*)(vmlinux_iter + shstrtab_tmp.size());
+    parsedKernimg->gen_shstrtab(&shstrtab_tmp, &vmlinuxBase->e_shnum, &vmlinuxBase->e_shstrndx);
+    memcpy(vmlinux_iter, shstrtab_tmp->data(), shstrtab_tmp->size());
+    vmlinux_iter = (void*)((size_t)vmlinux_iter + shstrtab_tmp->size());
 
     // patch the section header and write it to the binary, adjusting for
     // the program header and the elf header
-    parsedKernimg->patch_and_write(vmlinux_iter, vmlinuxBase - kernimgBase);
+    vmlinuxBase->e_phnum = g_phArray.size();
+    vmlinuxBase->e_shoff = ((size_t)vmlinux_iter - (size_t)vmlinuxBase);
+    parsedKernimg->patch_and_write(vmlinux_iter, (size_t)kernimgBase - (size_t)vmlinuxBase);
 
+    out_vmlinux = fopen(vmlinux_targ, "w");
+    SAFE_BAIL(out_vmlinux == 0);
+    fwrite(vmlinuxBase, 1, vmlinux_sz, out_vmlinux);
 
-    return 0;
+    result = 0;
+fail:
+    SAFE_FCLOSE(out_vmlinux);
+    SAFE_DEL(parsedKernimg);
+    SAFE_FREE(vmlinuxBase);
+    return result;
 }
