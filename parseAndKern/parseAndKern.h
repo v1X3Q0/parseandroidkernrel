@@ -2,12 +2,18 @@
 #define PARSEANDKERN_H
 
 #include <map>
+#include <vector>
 #include <string>
 #include <elf.h>
+
+#include <drv_share.h>
 #include "spare_vmlinux.h"
 
 #define RESOLVE_REL(x) \
     ((size_t)x - (size_t)binBegin)
+
+#define R_KA(x) \
+    ((size_t)x + (size_t)ANDROID_KERNBASE)
 
 #define UNRESOLVE_REL(x) \
     ((size_t)x + (size_t)binBegin)
@@ -33,6 +39,7 @@ public:
         return result;
     };
 
+    Elf64_Shdr* find_sect(std::string lookupKey);
     size_t resolveRel(size_t rebase);
     int findKindInKstr(const char* newString, int* index);
     int parseAndGetGlobals();
@@ -46,9 +53,9 @@ public:
 
     size_t get_kernimg_sz() { return kern_sz; };
     uint32_t* get_binbegin() { return binBegin; };
-    kernel_symbol* get_ksymtab() { return (kernel_symbol*)UNRESOLVE_REL(sect_list["__ksymtab"].sh_addr); };
+    kernel_symbol* get_ksymtab() { return (kernel_symbol*)UNRESOLVE_REL(find_sect("__ksymtab")->sh_offset); };
     size_t get_ksyms_count() { return ksyms_count; };
-    uint32_t* get_kcrctab() { return (uint32_t*)UNRESOLVE_REL(sect_list["__kcrctab"].sh_addr); };
+    uint32_t* get_kcrctab() { return (uint32_t*)UNRESOLVE_REL(find_sect("__kcrctab")->sh_offset); };
 private:
     kern_img(uint32_t* binBegin_a) : binBegin(binBegin_a) { parseAndGetGlobals(); };
     kern_img(uint32_t* binBegin_a, size_t kern_sz_a) : binBegin(binBegin_a), kern_sz(kern_sz_a) {};
@@ -69,7 +76,8 @@ private:
     int base_inits();
     int base_new_shstrtab();
 
-    std::map<std::string, Elf64_Shdr> sect_list;
+    // std::map<std::string, Elf64_Shdr> sect_list;
+    std::vector<std::pair<std::string, Elf64_Shdr*>> sect_list;
     uint32_t* binBegin;
     size_t kern_sz;
 

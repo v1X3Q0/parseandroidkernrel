@@ -13,18 +13,20 @@
 
     // "/home/mariomain/Downloads/android-images/walleye-qq3a.200805.001/image-walleye-qq3a.200805.001/boot.img-extracted/kernelimage"
 
+    // "${workspaceFolder}/build/ki_to_vmlinux/ki_to_vmlinux"
+    // "-k",
+    // "~/Downloads/android-images/sunfish-rq3a.211001.001/image-sunfish-rq3a.211001.001/boot.img.extracted/kernelimage"
+
     "version": "0.2.0",
     "configurations": [
         {
             "name": "(gdb) Launch",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/patchCrc/patchCrc",
+            "program": "${workspaceFolder}/build/ki_to_vmlinux/ki_to_vmlinux",
             "args": [
-                "-i",
-                "/media/mariomain/vendor/lib/modules",
-                "-m",
-                "/home/mariomain/repos/rwDrv/mychar.ko"
+                "-k",
+                "~/Downloads/android-images/sunfish-rq3a.211001.001/image-sunfish-rq3a.211001.001/boot.img.extracted/kernelimage"
             ],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",

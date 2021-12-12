@@ -40,6 +40,7 @@ void elfConstruction(Elf64_Ehdr* elfHead)
     // elfHead->e_phnum
     elfHead->e_shentsize = sizeof(Elf64_Shdr);
     // elfHead->e_shnum
+    // elfHead->e_shstrndx
 }
 
 std::vector<Elf64_Phdr> g_phArray;

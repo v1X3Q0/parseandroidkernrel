@@ -1,1 +1,1 @@
-add_library(parseAndKern STATIC parseAndKern.cpp)
+add_library(parseAndKern STATIC pak_core.cpp pak_grab.cpp pak_base.cpp)
