@@ -18,12 +18,12 @@ int kern_img::base_inits()
     FINISH_IF((check_sect(".head.text", NULL) == 0) &&
         (check_sect(".text", NULL) == 0) && (check_sect(".init.text", NULL) == 0));
 
-    insert_section(".head.text", SHT_PROGBITS, 0, (size_t)binBegin, (size_t)binBegin, 0, 0, 0, 8, 0);
+    insert_section(".head.text", SHT_PROGBITS, 0, (size_t)binBegin, (size_t)binBegin, 0, 0, 0, 4, 0);
     
     getB.addNewInst(cOperand::createASI<size_t, size_t, saveVar_t*>(SP, SP, getB.checkOperand(0)));
     SAFE_BAIL(getB.findPattern(binBegin, PAGE_SIZE * 4, &text_start) == -1);
     find_sect(".head.text")->sh_size = (size_t)text_start - (size_t)binBegin;
-    insert_section(".text", SHT_PROGBITS, 0, (size_t)text_start, (size_t)text_start, 0, 0, 0, 8, 0);
+    insert_section(".text", SHT_PROGBITS, 0, (size_t)text_start, (size_t)text_start, 0, 0, 0, 2048, 0);
 
     insert_section(".init.text", SHT_PROGBITS, 0, (size_t)_sinittext, (size_t)_sinittext, 0, 0, 0, 8, 0);
 
@@ -126,7 +126,7 @@ int kern_img::base_ksymtab_strings()
 
 finish_eval:
     ksymtabstr_tmp = (size_t)(curStr - targSymLen + 1);
-    insert_section("__ksymtab_strings", SHT_PROGBITS, 0, ksymtabstr_tmp, ksymtabstr_tmp, UNRESOLVE_REL(paramSec->sh_offset) - ksymtabstr_tmp, 0, 0, 8, 0);
+    insert_section("__ksymtab_strings", SHT_PROGBITS, 0, ksymtabstr_tmp, ksymtabstr_tmp, UNRESOLVE_REL(paramSec->sh_offset) - ksymtabstr_tmp, 0, 0, 1, 0);
 finish:
     result = 0;
 fail:
@@ -161,7 +161,7 @@ int kern_img::base_kcrctab()
 
 finish_eval:
     crcIter++;
-    insert_section("__kcrctab", SHT_PROGBITS, 0, (size_t)crcIter, (size_t)crcIter, 0, 0, 0, 8, 0);
+    insert_section("__kcrctab", SHT_PROGBITS, 0, (size_t)crcIter, (size_t)crcIter, 0, 0, 0, 1, 0);
     find_sect("__kcrctab")->sh_size = UNRESOLVE_REL(find_sect("__ksymtab_strings")->sh_offset) - (size_t)crcIter;
     ksyms_count = crcCount;
 finish:
@@ -231,7 +231,7 @@ int kern_img::base_ex_table()
 
     modverIter = (void**)UNRESOLVE_REL(modverSec->sh_offset);
 
-    while (*modverIter)
+    while ((*modverIter) == 0)
     {
         modverIter++;
     }

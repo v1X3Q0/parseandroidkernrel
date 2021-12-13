@@ -65,13 +65,13 @@ void progHeadConstruction(Elf64_Phdr* phHead, size_t imageSz)
 {
     memset(phHead, 0, sizeof(Elf64_Phdr));
     phHead->p_type = PT_LOAD;
+    phHead-> p_flags = PF_X | PF_W | PF_R;
+    phHead->p_offset = PAGE_SIZE4K;
     phHead->p_vaddr = ANDROID_KERNBASE;
     phHead->p_paddr = ANDROID_KERNBASE;
-    phHead-> p_flags = PF_X | PF_W | PF_R;
-    phHead->p_align = 0x10000;
     phHead->p_filesz = imageSz;
     phHead->p_memsz = imageSz;
-    phHead->p_offset = PAGE_SIZE4K;
+    phHead->p_align = 0x10000;
 }
 
 int main(int argc, char **argv)
@@ -114,7 +114,11 @@ int main(int argc, char **argv)
         }
     }
 
-    SAFE_BAIL(kernimg_targ == 0);
+    if (kernimg_targ == 0)
+    {
+        usage(argv[0]);
+    }
+
     if (vmlinux_targ == 0)
     {
         strcpy(vmlinux_dir_copy, kernimg_targ);
@@ -142,9 +146,10 @@ int main(int argc, char **argv)
     vmlinux_iter = (void*)((size_t)vmlinuxBase + sizeof(Elf64_Ehdr));
 
     // write the new program header to the new vmlinux
-    insert_phdr(PT_LOAD, PF_X | PF_W | PF_R, PAGE_SIZE4K, ANDROID_KERNBASE, ANDROID_KERNBASE,
-        parsedKernimg->get_kernimg_sz(), parsedKernimg->get_kernimg_sz(), 0x10000);
-    patch_and_write_phdr((Elf64_Phdr*)vmlinux_iter, &g_phArray);
+    phdrBase = (Elf64_Phdr*)vmlinux_iter;
+    // insert_phdr(PT_LOAD, PF_X | PF_W | PF_R, PAGE_SIZE4K, ANDROID_KERNBASE, ANDROID_KERNBASE,
+    //     parsedKernimg->get_kernimg_sz(), parsedKernimg->get_kernimg_sz(), 0x10000);
+    // patch_and_write_phdr((Elf64_Phdr*)vmlinux_iter, &g_phArray);
     vmlinux_iter = (void*)((size_t)vmlinuxBase + PAGE_SIZE);
 
     // write the kernel image itself to the new vmlinux
@@ -159,13 +164,14 @@ int main(int argc, char **argv)
 
     // patch the section header and write it to the binary, adjusting for
     // the program header and the elf header
-    vmlinuxBase->e_phnum = g_phArray.size();
     vmlinuxBase->e_shoff = ((size_t)vmlinux_iter - (size_t)vmlinuxBase);
-    parsedKernimg->patch_and_write(vmlinux_iter, (size_t)kernimgBase - (size_t)vmlinuxBase);
+    parsedKernimg->patch_and_write(vmlinuxBase, (Elf64_Shdr*)vmlinux_iter, phdrBase, (size_t)kernimgBase - (size_t)vmlinuxBase);
 
     out_vmlinux = fopen(vmlinux_targ, "w");
     SAFE_BAIL(out_vmlinux == 0);
     fwrite(vmlinuxBase, 1, vmlinux_sz, out_vmlinux);
+
+    printf("created new vmlinux %s\n", vmlinux_targ);
 
     result = 0;
 fail:

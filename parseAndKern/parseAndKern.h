@@ -21,6 +21,7 @@
 class kern_img
 {
 public:
+    // to be used for actual construction
     static kern_img* allocate_kern_img(const char* kern_file)
     {
         kern_img* result = 0;
@@ -39,17 +40,24 @@ public:
         return result;
     };
 
+    // couple of helpers for finding stuff
+    Elf64_Phdr* find_prog(std::string lookupKey);
     Elf64_Shdr* find_sect(std::string lookupKey);
+
     size_t resolveRel(size_t rebase);
     int findKindInKstr(const char* newString, int* index);
     int parseAndGetGlobals();
+    
+    // insertion function to be used, should be the only interface for adding new values
     void insert_section(std::string sec_name, uint16_t sh_type, uint64_t sh_flags,
         uint64_t sh_addr, uint64_t sh_offset, uint64_t sh_size, uint16_t sh_link,
         uint16_t sh_info, uint64_t sh_addralign, uint64_t sh_entsize);
     int check_sect(std::string sect_name, Elf64_Shdr** sect_out);
     int gen_vmlinux_sz(size_t* outSz, size_t headOffset);
     int gen_shstrtab(std::string** out_shstrtab, uint16_t* numSects, uint16_t* shstrtab_index);
-    int patch_and_write(void* vmlinux_cur, size_t offset);
+
+    // patch the out binary, section table base at vmlinux_cur and ph base at phBase
+    int patch_and_write(Elf64_Ehdr* vmlinux_base, Elf64_Shdr* vmlinux_cur, Elf64_Phdr* phBase, size_t offset);
 
     size_t get_kernimg_sz() { return kern_sz; };
     uint32_t* get_binbegin() { return binBegin; };
@@ -57,16 +65,18 @@ public:
     size_t get_ksyms_count() { return ksyms_count; };
     uint32_t* get_kcrctab() { return (uint32_t*)UNRESOLVE_REL(find_sect("__kcrctab")->sh_offset); };
 private:
+    // private constructors for internal use only
     kern_img(uint32_t* binBegin_a) : binBegin(binBegin_a) { parseAndGetGlobals(); };
     kern_img(uint32_t* binBegin_a, size_t kern_sz_a) : binBegin(binBegin_a), kern_sz(kern_sz_a) {};
-
     kern_img(const char* kern_file);
 
+    // grabbing global variables for use
     int grab_sinittext();
     int grab_primary_switch();
     int grab_primary_switched();
     int grab_start_kernel_g();
 
+    // finding sections in the binary
     int base_modverparam();
     int base_ksymtab_strings();
     int base_kcrctab();
@@ -76,22 +86,19 @@ private:
     int base_inits();
     int base_new_shstrtab();
 
-    // std::map<std::string, Elf64_Shdr> sect_list;
     std::vector<std::pair<std::string, Elf64_Shdr*>> sect_list;
+    std::vector<std::pair<std::string, Elf64_Phdr*>> prog_list;
+    // beginning of file list
     uint32_t* binBegin;
+    // input file size
     size_t kern_sz;
 
+    // tracked globals
     uint32_t* _sinittext;
     uint32_t* __primary_switch;
     uint32_t* __primary_switched;
     uint32_t* __create_page_tables;
     uint32_t* start_kernel;
-
-    // size_t __modver;
-    // size_t __param;
-    // const char* __ksymtab_strings_g;
-    // uint32_t* __kcrctab;
-    // kernel_symbol* __ksymtab;
    
     size_t ksyms_count;
 };

@@ -26,7 +26,7 @@
             "program": "${workspaceFolder}/build/ki_to_vmlinux/ki_to_vmlinux",
             "args": [
                 "-k",
-                "~/Downloads/android-images/sunfish-rq3a.211001.001/image-sunfish-rq3a.211001.001/boot.img.extracted/kernelimage"
+                "/home/mariomain/Downloads/android-images/sunfish-rq3a.211001.001/image-sunfish-rq3a.211001.001/boot.img-extracted/kernelimage"
             ],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
