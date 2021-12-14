@@ -20,6 +20,7 @@ add_subdirectory(${ANDROID_TOOL_BASE}/common/local_util ${CMAKE_BINARY_DIR}/loca
 add_subdirectory(parseAndKern)
 
 # executables
+add_subdirectory(lz42lz4)
 add_subdirectory(ki_to_vmlinux)
 add_subdirectory(patchCrc)
 add_subdirectory(uncrc)

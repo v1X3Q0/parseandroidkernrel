@@ -17,16 +17,20 @@
     // "-k",
     // "~/Downloads/android-images/sunfish-rq3a.211001.001/image-sunfish-rq3a.211001.001/boot.img.extracted/kernelimage"
 
+    // "${workspaceFolder}/build/lz42lz4/lz42lz4"
+    // "-i",
+    // "/home/mariomain/Downloads/android-images/sunfish-rq3a.211001.001/image-sunfish-rq3a.211001.001/boot.img-extracted/kernelimage.lz4"
+
     "version": "0.2.0",
     "configurations": [
         {
             "name": "(gdb) Launch",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/ki_to_vmlinux/ki_to_vmlinux",
+            "program": "${workspaceFolder}/build/lz42lz4/lz42lz4",
             "args": [
-                "-k",
-                "/home/mariomain/Downloads/android-images/sunfish-rq3a.211001.001/image-sunfish-rq3a.211001.001/boot.img-extracted/kernelimage"
+                "-i",
+                "/home/mariomain/Downloads/android-images/sunfish-rq3a.211001.001/image-sunfish-rq3a.211001.001/boot.img-extracted/kernelimage.lz4"
             ],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
