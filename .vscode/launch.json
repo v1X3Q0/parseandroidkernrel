@@ -30,7 +30,7 @@
             "program": "${workspaceFolder}/build/lz42lz4/lz42lz4",
             "args": [
                 "-i",
-                "/home/mariomain/Downloads/android-images/sunfish-rq3a.211001.001/image-sunfish-rq3a.211001.001/boot.img-extracted/kernelimage.lz4"
+                "/home/mariomain/Downloads/android-images/walleye-qq3a.200805.001/image-walleye-qq3a.200805.001/extracted/kernelimage.lz4"
             ],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
