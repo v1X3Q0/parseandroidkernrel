@@ -100,7 +100,7 @@ int kern_img::grab_primary_switch()
     uint32_t* primSwitchBAddr = 0;
     size_t primSwitchOff = 0;
 
-    getB.addNewInst(cOperand::createB<saveVar_t*>(getB.checkOperand(0)));
+    getB.addNewInst(cOperand::createB<saveVar_t>(getB.checkOperand(0)));
     SAFE_BAIL(getB.findPattern(_sinittext, PAGE_SIZE, &primSwitchBAddr) == -1);
 
     getB.getVar(0, &primSwitchOff);
@@ -126,7 +126,7 @@ int kern_img::grab_primary_switched()
     // size_t tmpMath = 0;
 
     // operand 1 is the immediate19, operand 2 is the register
-    // getB.addNewInst(cOperand::createLDRL<saveVar_t*, saveVar_t*>(getB.checkOperand(0), getB.checkOperand(1)));
+    // getB.addNewInst(cOperand::createLDRL<saveVar_t, saveVar_t>(getB.checkOperand(0), getB.checkOperand(1)));
     // SAFE_BAIL(getB.findPattern(__primary_switch_g, PAGE_SIZE, &primSwitchedLdrAddr) == -1);
 
     // getB.getVar(1, &primSwitchOff);
@@ -135,15 +135,15 @@ int kern_img::grab_primary_switched()
     // __primary_switched_g = (uint32_t*)(tmpMath + (size_t)binBegin);
 
     getB.addNewInst(new cOperand(ARM64_ISB_OP));
-    getB.addNewInst(cOperand::createBL<saveVar_t*>(getB.checkOperand(0)));
+    getB.addNewInst(cOperand::createBL<saveVar_t>(getB.checkOperand(0)));
     SAFE_BAIL(getB.findPattern(__primary_switch, PAGE_SIZE, &create_page_tablesAddr) == -1);
 
     getB.getVar(0, &create_page_tablesOff);
     __create_page_tables = (uint32_t*)(create_page_tablesOff + (size_t)create_page_tablesAddr + sizeof(uint32_t));
 
     getB.clearInternals();
-    getB.addNewInst(cOperand::createADRP<saveVar_t*, saveVar_t*>(getB.checkOperand(0), getB.checkOperand(1)));
-    getB.addNewInst(cOperand::createASI<size_t, saveVar_t*, size_t>(SP, getB.checkOperand(0), 4));
+    getB.addNewInst(cOperand::createADRP<saveVar_t, saveVar_t>(getB.checkOperand(0), getB.checkOperand(1)));
+    getB.addNewInst(cOperand::createASI<size_t, saveVar_t, size_t>(SP, getB.checkOperand(0), 4));
     SAFE_BAIL(getB.findPattern(__create_page_tables, PAGE_SIZE, &__primary_switched) == -1);
 
     result = 0;
@@ -162,7 +162,7 @@ int kern_img::grab_start_kernel_g()
     instSet getB;
     size_t start_kernelOff = 0;
 
-    getB.addNewInst(cOperand::createB<saveVar_t*>(getB.checkOperand(0)));
+    getB.addNewInst(cOperand::createB<saveVar_t>(getB.checkOperand(0)));
     SAFE_BAIL(getB.findPattern(__primary_switched, PAGE_SIZE, &start_kernel) == -1);
 
     getB.getVar(0, &start_kernelOff);

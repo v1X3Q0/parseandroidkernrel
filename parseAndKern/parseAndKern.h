@@ -85,6 +85,7 @@ private:
     int base_ex_table();
     int base_inits();
     int base_new_shstrtab();
+    int base_init_data();
 
     std::vector<std::pair<std::string, Elf64_Shdr*>> sect_list;
     std::vector<std::pair<std::string, Elf64_Phdr*>> prog_list;

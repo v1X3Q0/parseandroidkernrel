@@ -20,7 +20,7 @@ int kern_img::base_inits()
 
     insert_section(".head.text", SHT_PROGBITS, 0, (size_t)binBegin, (size_t)binBegin, 0, 0, 0, 4, 0);
     
-    getB.addNewInst(cOperand::createASI<size_t, size_t, saveVar_t*>(SP, SP, getB.checkOperand(0)));
+    getB.addNewInst(cOperand::createASI<size_t, size_t, saveVar_t>(SP, SP, getB.checkOperand(0)));
     SAFE_BAIL(getB.findPattern(binBegin, PAGE_SIZE * 4, &text_start) == -1);
     find_sect(".head.text")->sh_size = (size_t)text_start - (size_t)binBegin;
     insert_section(".text", SHT_PROGBITS, 0, (size_t)text_start, (size_t)text_start, 0, 0, 0, 2048, 0);
@@ -46,11 +46,11 @@ int kern_img::base_modverparam()
     FINISH_IF((check_sect("__modver", NULL) == 0) && (check_sect("__param", NULL) == 0));
 
     getB.clearInternals();
-    getB.addNewInst(cOperand::createADRP<saveVar_t*, saveVar_t*>(getB.checkOperand(0), getB.checkOperand(1)));
-    getB.addNewInst(cOperand::createADRP<saveVar_t*, saveVar_t*>(getB.checkOperand(2), getB.checkOperand(3)));
-    getB.addNewInst(cOperand::createASI<saveVar_t*, saveVar_t*, saveVar_t*>(getB.checkOperand(0), getB.checkOperand(0), getB.checkOperand(4)));
-    getB.addNewInst(cOperand::createASI<saveVar_t*, saveVar_t*, saveVar_t*>(getB.checkOperand(2), getB.checkOperand(2), getB.checkOperand(5)));
-    getB.addNewInst(cOperand::createLI<saveVar_t*, size_t, size_t, size_t>(getB.checkOperand(6), X31,  0x39, 0x3));
+    getB.addNewInst(cOperand::createADRP<saveVar_t, saveVar_t>(getB.checkOperand(0), getB.checkOperand(1)));
+    getB.addNewInst(cOperand::createADRP<saveVar_t, saveVar_t>(getB.checkOperand(2), getB.checkOperand(3)));
+    getB.addNewInst(cOperand::createASI<saveVar_t, saveVar_t, saveVar_t>(getB.checkOperand(0), getB.checkOperand(0), getB.checkOperand(4)));
+    getB.addNewInst(cOperand::createASI<saveVar_t, saveVar_t, saveVar_t>(getB.checkOperand(2), getB.checkOperand(2), getB.checkOperand(5)));
+    getB.addNewInst(cOperand::createLI<saveVar_t, size_t, size_t, size_t>(getB.checkOperand(6), X31,  0x39, 0x3));
 
     SAFE_BAIL(getB.findPattern(start_kernel, PAGE_SIZE, &modverAddr) == -1);
 
@@ -197,18 +197,18 @@ int kern_img::base_ksymtab()
     // size_t modverOff = 0;
 
     // getB.addNewInst(cOperand::createMWI<size_t, size_t>(1, 0x80c0));
-    // getB.addNewInst(cOperand::createB<saveVar_t*>(getB.checkOperand(0)));
+    // getB.addNewInst(cOperand::createB<saveVar_t>(getB.checkOperand(0)));
     // SAFE_BAIL(getB.findPattern(__primary_switched_g, PAGE_SIZE, &start_kernel_g) == -1);
 
     // getB.getVar(0, &start_kernelOff);
     // start_kernel_g = (uint32_t*)(start_kernelOff + (size_t)start_kernel_g);
 
     // getB.clearInternals();
-    // getB.addNewInst(cOperand::createADRP<saveVar_t*, saveVar_t*>(getB.checkOperand(0), getB.checkOperand(1)));
-    // getB.addNewInst(cOperand::createADRP<saveVar_t*, saveVar_t*>(getB.checkOperand(2), getB.checkOperand(3)));
-    // getB.addNewInst(cOperand::createASI<saveVar_t*, saveVar_t*, saveVar_t*>(getB.checkOperand(0), getB.checkOperand(0), getB.checkOperand(4)));
-    // getB.addNewInst(cOperand::createASI<saveVar_t*, saveVar_t*, saveVar_t*>(getB.checkOperand(2), getB.checkOperand(2), getB.checkOperand(5)));
-    // getB.addNewInst(cOperand::createLI<saveVar_t*, size_t, size_t, size_t>(getB.checkOperand(6), X31,  0x39, 0x3));
+    // getB.addNewInst(cOperand::createADRP<saveVar_t, saveVar_t>(getB.checkOperand(0), getB.checkOperand(1)));
+    // getB.addNewInst(cOperand::createADRP<saveVar_t, saveVar_t>(getB.checkOperand(2), getB.checkOperand(3)));
+    // getB.addNewInst(cOperand::createASI<saveVar_t, saveVar_t, saveVar_t>(getB.checkOperand(0), getB.checkOperand(0), getB.checkOperand(4)));
+    // getB.addNewInst(cOperand::createASI<saveVar_t, saveVar_t, saveVar_t>(getB.checkOperand(2), getB.checkOperand(2), getB.checkOperand(5)));
+    // getB.addNewInst(cOperand::createLI<saveVar_t, size_t, size_t, size_t>(getB.checkOperand(6), X31,  0x39, 0x3));
 
 finish:
     result = 0;
@@ -284,3 +284,28 @@ fail:
     return result;
 }
 
+int kern_img::base_init_data()
+{
+    int result = -1;
+    instSet getB;
+    uint32_t* init_data_off = 0;
+    size_t init_data_l = 0;
+    size_t init_data_final = 0;
+
+    getB.addNewInst(cOperand::createADRP<saveVar_t, saveVar_t>(
+        getB.checkOperand(0), getB.checkOperand(1)));
+    getB.addNewInst(cOperand::createLDRB<saveVar_t, saveVar_t, saveVar_t>(
+        getB.checkOperand(2), getB.checkOperand(0), getB.checkOperand(4)));
+    SAFE_BAIL(getB.findPattern(start_kernel, PAGE_SIZE, &init_data_off) == -1);
+
+    getB.getVar(0, &init_data_l);
+    getB.getVar(4, &init_data_final);
+    init_data_final += init_data_l;
+
+    init_data_final = (size_t)(((size_t)init_data_off & ~PAGE_MASK) + (size_t)init_data_final);
+
+finish:
+    result = 0;
+fail:
+    return result;
+}
