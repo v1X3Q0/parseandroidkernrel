@@ -29,6 +29,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/build/lz42lz4/lz42lz4",
             "args": [
+                "-r",
                 "-i",
                 "/home/mariomain/Downloads/android-images/walleye-qq3a.200805.001/image-walleye-qq3a.200805.001/extracted/kernelimage.lz4"
             ],

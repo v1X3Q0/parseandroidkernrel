@@ -96,14 +96,14 @@ int main(int argc, char **argv)
     else if (kernimg_targ != 0)
     {
         parsedKernimg = kern_img::allocate_kern_img(kernimg_targ);
-        SAFE_BAIL(parsedKernimg == 0);
+        SAFE_FAIL(parsedKernimg == 0, "kernel image  was invalid\n");
         ksymBase = parsedKernimg->get_ksymtab();
         ksymCount = parsedKernimg->get_ksyms_count();
         kcrcBase = parsedKernimg->get_kcrctab();
     }
 
-    SAFE_BAIL(vendorimg_path == 0);
-    SAFE_BAIL(get_libmodules(vendorimg_path, &vendorimg_names) == -1);
+    SAFE_FAIL(vendorimg_path == 0, "need a provided vendor image path\n");
+    SAFE_FAIL(get_libmodules(vendorimg_path, &vendorimg_names) == -1, "provided image path invalid\n");
     symvers_modules(&vendorimg_names, &vendor_crcs);
 
     SAFE_BAIL(newDriver == 0);
