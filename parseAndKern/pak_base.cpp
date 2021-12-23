@@ -6,6 +6,9 @@
 #include <hdeA64.h>
 #include <ibeSet.h>
 #include <localUtil.h>
+
+#include <krw_util.h>
+
 #include "spare_vmlinux.h"
 #include "parseAndKern.h"
 
@@ -21,7 +24,7 @@ int kern_img::base_inits()
     insert_section(".head.text", SHT_PROGBITS, 0, (size_t)binBegin, (size_t)binBegin, 0, 0, 0, 4, 0);
     
     getB.addNewInst(cOperand::createASI<size_t, size_t, saveVar_t>(SP, SP, getB.checkOperand(0)));
-    SAFE_BAIL(getB.findPattern(binBegin, PAGE_SIZE * 4, &text_start) == -1);
+    SAFE_BAIL(kernel_search(&getB, binBegin, PAGE_SIZE * 4, &text_start) == -1);
     find_sect(".head.text")->sh_size = (size_t)text_start - (size_t)binBegin;
     insert_section(".text", SHT_PROGBITS, 0, (size_t)text_start, (size_t)text_start, 0, 0, 0, 2048, 0);
 
@@ -52,7 +55,7 @@ int kern_img::base_modverparam()
     getB.addNewInst(cOperand::createASI<saveVar_t, saveVar_t, saveVar_t>(getB.checkOperand(2), getB.checkOperand(2), getB.checkOperand(5)));
     getB.addNewInst(cOperand::createLI<saveVar_t, size_t, size_t, size_t>(getB.checkOperand(6), X31,  0x39, 0x3));
 
-    SAFE_BAIL(getB.findPattern(start_kernel, PAGE_SIZE, &modverAddr) == -1);
+    SAFE_BAIL(kernel_search(&getB, start_kernel, PAGE_SIZE, &modverAddr) == -1);
 
     getB.getVar(3, &modverOff);
     modvertmp = modverOff + ((size_t)(modverAddr + sizeof(uint32_t)) & ~PAGE_MASK);
@@ -81,8 +84,6 @@ int kern_img::base_ksymtab_strings()
     const char* curStr = 0;
     const char* prevStr = 0;
     size_t offsetTmp = 0;
-    // make sure we don't search memory forever
-    int ksymAssumeSize = 0x40000;
     int dbgCounter = 0;
     const char targSymName[] = "system_state";
     size_t targSymLen = strlen(targSymName);
@@ -90,18 +91,34 @@ int kern_img::base_ksymtab_strings()
     Elf64_Shdr* paramSec = 0;
     size_t ksymtabstr_tmp = 0;
 
+    // make sure we don't search memory forever
+    const size_t ksymstrAssumeSize = 0x40000;
+    size_t paramSec_start = 0;
+    void* ksymstrBuf = 0;
+
     // check if kcrc already exists
     FINISH_IF(check_sect("__ksymtab_strings", NULL) == 0);
 
     // grab the base that i need
     SAFE_BAIL(check_sect("__param", &paramSec) == -1);
 
-    offsetTmp = rfindnn((const char*)UNRESOLVE_REL(paramSec->sh_offset), DEFAULT_SEARCH_SIZE);
+    if (live_kernel == true)
+    {
+        ksymstrBuf = calloc(ksymstrAssumeSize, 1);
+        kRead(ksymstrBuf, ksymstrAssumeSize, paramSec->sh_offset - ksymstrAssumeSize);
+        paramSec_start = (size_t)ksymstrBuf + ksymstrAssumeSize;
+    }
+    else if (live_kernel == false)
+    {
+        paramSec_start = UNRESOLVE_REL(paramSec->sh_offset);
+    }
+
+    offsetTmp = rfindnn((const char*)paramSec_start, DEFAULT_SEARCH_SIZE);
     SAFE_BAIL(offsetTmp == -1);
-    curStr = (const char*)(UNRESOLVE_REL(paramSec->sh_offset) - offsetTmp);
+    curStr = (const char*)(paramSec_start - offsetTmp);
     dbgCounter = offsetTmp;
 
-    while (dbgCounter < ksymAssumeSize)
+    while (dbgCounter < ksymstrAssumeSize)
     {
         ksyms_count++;
         // strncmp("static_key_initialized", cmpStr, DEFAULT_SEARCH_SIZE)
@@ -126,10 +143,11 @@ int kern_img::base_ksymtab_strings()
 
 finish_eval:
     ksymtabstr_tmp = (size_t)(curStr - targSymLen + 1);
-    insert_section("__ksymtab_strings", SHT_PROGBITS, 0, ksymtabstr_tmp, ksymtabstr_tmp, UNRESOLVE_REL(paramSec->sh_offset) - ksymtabstr_tmp, 0, 0, 1, 0);
+    insert_section("__ksymtab_strings", SHT_PROGBITS, 0, ksymtabstr_tmp, ksymtabstr_tmp, paramSec_start - ksymtabstr_tmp, 0, 0, 1, 0);
 finish:
     result = 0;
 fail:
+    SAFE_FREE(ksymstrBuf);
     return result;
 }
 
@@ -263,7 +281,7 @@ int kern_img::base_modver()
     Elf64_Shdr* paramSec = 0;
 
     // check if modver already exists
-    SAFE_BAIL(check_sect("__modver", NULL) == -1);
+    FINISH_IF(check_sect("__modver", NULL) == -1);
 
     // grab the base that i need
     SAFE_BAIL(check_sect("__param", &paramSec) == -1);
@@ -279,6 +297,7 @@ int kern_img::base_modver()
     base_ex_table();
     find_sect("__modver")->sh_size = UNRESOLVE_REL(find_sect("__ex_table")->sh_offset) - (size_t)paramIter;
 
+finish:
     result = 0;
 fail:
     return result;
@@ -296,7 +315,7 @@ int kern_img::base_init_data()
         getB.checkOperand(0), getB.checkOperand(1)));
     getB.addNewInst(cOperand::createLDRB<saveVar_t, saveVar_t, saveVar_t>(
         getB.checkOperand(2), getB.checkOperand(0), getB.checkOperand(4)));
-    SAFE_BAIL(getB.findPattern(start_kernel, PAGE_SIZE, &init_data_off) == -1);
+    SAFE_BAIL(kernel_search(&getB, start_kernel, PAGE_SIZE, &init_data_off) == -1);
 
     getB.getVar(0, &init_data_l);
     getB.getVar(4, &init_data_final);

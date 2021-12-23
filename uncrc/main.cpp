@@ -91,7 +91,7 @@ int uncrc(uint32_t crc_post)
 
     tab_low = crctab32[crcIndex] ^ crc_post;
 	crcU24 = tab_low << 8;
-
+	return 0;
 }
 
 int usage(char* argv0)

@@ -6,14 +6,57 @@
 #include <hdeA64.h>
 #include <ibeSet.h>
 #include <localUtil.h>
+
+#include <krw_util.h>
+
 #include "spare_vmlinux.h"
 #include "parseAndKern.h"
+
+int kern_img::live_kern_addr(void* target_kernel_address, size_t size_kernel_buf, void** out_live_addr)
+{
+    int result = -1;
+    void* newKernelAddress = 0;
+
+    if (live_kernel == false)
+    {
+        *out_live_addr = target_kernel_address;
+        result = 0;
+        goto finish;
+    }
+
+    newKernelAddress = calloc(size_kernel_buf, 1);
+    SAFE_BAIL(newKernelAddress == 0);
+    SAFE_BAIL(kRead(target_kernel_address, size_kernel_buf, (size_t)target_kernel_address) == -1);
+
+    result = 0;
+    goto finish;
+fail:
+    SAFE_FREE(newKernelAddress);
+finish:
+    return result;
+}
+
+int kern_img::kernel_search(instSet* getB, void* img_var, size_t img_var_sz, uint32_t** out_img_off)
+{
+    int result = -1;
+    void* img_var_local = 0;
+
+    SAFE_BAIL(live_kern_addr(img_var, img_var_sz, &img_var_local) == -1);
+    SAFE_BAIL(getB->findPattern((uint32_t*)img_var_local, img_var_sz, out_img_off) == -1);
+
+    result = 0;
+fail:
+    return result;
+}
 
 int kern_img::grab_sinittext()
 {
     int result = -1;
     hde_t tempInst = {0};
-    SAFE_BAIL(parseInst(*binBegin, &tempInst) == -1);
+    uint32_t* binBegMap = 0;
+    
+    SAFE_BAIL(live_kern_addr((void*)binBegin, sizeof(*binBegin), (void**)&binBegMap) == -1);
+    SAFE_BAIL(parseInst(*binBegMap, &tempInst) == -1);
     _sinittext = (uint32_t*)(tempInst.immLarge + (size_t)binBegin);
 
     result = 0;
@@ -101,7 +144,7 @@ int kern_img::grab_primary_switch()
     size_t primSwitchOff = 0;
 
     getB.addNewInst(cOperand::createB<saveVar_t>(getB.checkOperand(0)));
-    SAFE_BAIL(getB.findPattern(_sinittext, PAGE_SIZE, &primSwitchBAddr) == -1);
+    SAFE_BAIL(kernel_search(&getB, _sinittext, PAGE_SIZE, &primSwitchBAddr) == -1);
 
     getB.getVar(0, &primSwitchOff);
     __primary_switch = (uint32_t*)(primSwitchOff + (size_t)primSwitchBAddr);
@@ -136,15 +179,15 @@ int kern_img::grab_primary_switched()
 
     getB.addNewInst(new cOperand(ARM64_ISB_OP));
     getB.addNewInst(cOperand::createBL<saveVar_t>(getB.checkOperand(0)));
-    SAFE_BAIL(getB.findPattern(__primary_switch, PAGE_SIZE, &create_page_tablesAddr) == -1);
+    SAFE_BAIL(kernel_search(&getB, __primary_switch, PAGE_SIZE, &create_page_tablesAddr) == -1);
 
     getB.getVar(0, &create_page_tablesOff);
     __create_page_tables = (uint32_t*)(create_page_tablesOff + (size_t)create_page_tablesAddr + sizeof(uint32_t));
-
+    
     getB.clearInternals();
     getB.addNewInst(cOperand::createADRP<saveVar_t, saveVar_t>(getB.checkOperand(0), getB.checkOperand(1)));
     getB.addNewInst(cOperand::createASI<size_t, saveVar_t, size_t>(SP, getB.checkOperand(0), 4));
-    SAFE_BAIL(getB.findPattern(__create_page_tables, PAGE_SIZE, &__primary_switched) == -1);
+    SAFE_BAIL(kernel_search(&getB, __create_page_tables, PAGE_SIZE, &__primary_switched) == -1);
 
     result = 0;
 fail:
@@ -163,7 +206,7 @@ int kern_img::grab_start_kernel_g()
     size_t start_kernelOff = 0;
 
     getB.addNewInst(cOperand::createB<saveVar_t>(getB.checkOperand(0)));
-    SAFE_BAIL(getB.findPattern(__primary_switched, PAGE_SIZE, &start_kernel) == -1);
+    SAFE_BAIL(kernel_search(&getB, __primary_switched, PAGE_SIZE, &start_kernel) == -1);
 
     getB.getVar(0, &start_kernelOff);
     start_kernel = (uint32_t*)(start_kernelOff + (size_t)start_kernel);

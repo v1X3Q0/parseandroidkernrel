@@ -6,6 +6,7 @@
 #include <string>
 #include <elf.h>
 
+#include <ibeSet.h>
 #include <drv_share.h>
 #include "spare_vmlinux.h"
 
@@ -40,6 +41,21 @@ public:
         return result;
     };
 
+    static kern_img* grab_live_kernel(void* kern_base)
+    {
+        kern_img* result = 0;
+        void* binBegin = 0;
+
+        result = new kern_img((uint32_t*)binBegin);
+        SAFE_BAIL(result->parseAndGetGlobals() == -1);
+
+        goto finish;
+    fail:
+        SAFE_DEL(result);
+    finish:
+        return result;
+    }
+
     // couple of helpers for finding stuff
     Elf64_Phdr* find_prog(std::string lookupKey);
     Elf64_Shdr* find_sect(std::string lookupKey);
@@ -47,6 +63,10 @@ public:
     size_t resolveRel(size_t rebase);
     int findKindInKstr(const char* newString, int* index);
     int parseAndGetGlobals();
+
+    // under the condition that we have a live kernel, translation routine.
+    int live_kern_addr(void* target_kernel_address, size_t size_kernel_buf, void** out_live_addr);
+    int kernel_search(instSet* getB, void* img_var, size_t img_var_sz, uint32_t** out_img_off);
     
     // insertion function to be used, should be the only interface for adding new values
     void insert_section(std::string sec_name, uint16_t sh_type, uint64_t sh_flags,
@@ -65,9 +85,10 @@ public:
     size_t get_ksyms_count() { return ksyms_count; };
     uint32_t* get_kcrctab() { return (uint32_t*)UNRESOLVE_REL(find_sect("__kcrctab")->sh_offset); };
 private:
+    bool live_kernel;
     // private constructors for internal use only
-    kern_img(uint32_t* binBegin_a) : binBegin(binBegin_a) { parseAndGetGlobals(); };
-    kern_img(uint32_t* binBegin_a, size_t kern_sz_a) : binBegin(binBegin_a), kern_sz(kern_sz_a) {};
+    kern_img(uint32_t* binBegin_a) : binBegin(binBegin_a), live_kernel(true) {};
+    kern_img(uint32_t* binBegin_a, size_t kern_sz_a) : binBegin(binBegin_a), kern_sz(kern_sz_a), live_kernel(false) {};
     kern_img(const char* kern_file);
 
     // grabbing global variables for use

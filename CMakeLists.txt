@@ -9,15 +9,19 @@ add_definitions(-DDYN_DISASM)
 
 # includes
 include_directories(${ANDROID_TOOL_BASE}/common/hde_armv8 ${ANDROID_TOOL_BASE}/common/local_util ${ANDROID_TOOL_BASE}/common/c_reginst)
-include_directories(${ANDROID_TOOL_BASE}/linux/include)
+# this include is just forsome of the kernel stuff... not really necessary for x86 host tooling but have it anyway for includes sake
+include_directories(${ANDROID_TOOL_BASE}/common/krw_util ${ANDROID_TOOL_BASE}/linux/include ${ANDROID_TOOL_BASE}/linux/targkrw)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/parseAndKern)
 
+# libraries
 add_subdirectory(${ANDROID_TOOL_BASE}/common/hde_armv8 ${CMAKE_BINARY_DIR}/hde_armv8)
 add_subdirectory(${ANDROID_TOOL_BASE}/common/c_reginst ${CMAKE_BINARY_DIR}/c_reginst)
 add_subdirectory(${ANDROID_TOOL_BASE}/common/local_util ${CMAKE_BINARY_DIR}/local_util)
-
-# libraries
 add_subdirectory(parseAndKern)
+# kernel bonus adds
+add_subdirectory(${ANDROID_TOOL_BASE}/common/krw_util ${CMAKE_BINARY_DIR}/krw_util)
+add_subdirectory(${ANDROID_TOOL_BASE}/linux/targkrw ${CMAKE_BINARY_DIR}/targkrw)
+add_subdirectory(${ANDROID_TOOL_BASE}/linux/drv_krw ${CMAKE_BINARY_DIR}/drv_krw)
 
 # executables
 add_subdirectory(lz42lz4)
