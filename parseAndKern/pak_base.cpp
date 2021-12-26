@@ -36,48 +36,6 @@ fail:
     return result;
 }
 
-int kern_img::base_modverparam()
-{
-    int result = -1;
-    instSet getB;
-    uint32_t* modverAddr = 0;
-    size_t modverOff = 0;
-    size_t modvertmp = 0;
-    size_t paramtmp = 0;
-
-    // check if we already have what we are looking for
-    FINISH_IF((check_sect("__modver", NULL) == 0) && (check_sect("__param", NULL) == 0));
-
-    getB.clearInternals();
-    getB.addNewInst(cOperand::createADRP<saveVar_t, saveVar_t>(getB.checkOperand(0), getB.checkOperand(1)));
-    getB.addNewInst(cOperand::createADRP<saveVar_t, saveVar_t>(getB.checkOperand(2), getB.checkOperand(3)));
-    getB.addNewInst(cOperand::createASI<saveVar_t, saveVar_t, saveVar_t>(getB.checkOperand(0), getB.checkOperand(0), getB.checkOperand(4)));
-    getB.addNewInst(cOperand::createASI<saveVar_t, saveVar_t, saveVar_t>(getB.checkOperand(2), getB.checkOperand(2), getB.checkOperand(5)));
-    getB.addNewInst(cOperand::createLI<saveVar_t, size_t, size_t, size_t>(getB.checkOperand(6), X31,  0x39, 0x3));
-
-    SAFE_BAIL(kernel_search(&getB, start_kernel, PAGE_SIZE, &modverAddr) == -1);
-
-    getB.getVar(3, &modverOff);
-    modvertmp = modverOff + ((size_t)(modverAddr + sizeof(uint32_t)) & ~PAGE_MASK);
-    getB.getVar(5, &modverOff);
-    modvertmp += modverOff;
-    insert_section("__modver", SHT_PROGBITS, 0, (size_t)modvertmp, (size_t)modvertmp, 0, 0, 0, 8, 0);
-
-    getB.getVar(1, &modverOff);
-    paramtmp = modverOff + ((size_t)(modverAddr) & ~PAGE_MASK);
-    getB.getVar(4, &modverOff);
-    paramtmp += modverOff;
-    insert_section("__param", SHT_PROGBITS, 0, (size_t)paramtmp, (size_t)paramtmp, modvertmp - paramtmp, 0, 0, 8, 0);
-
-    SAFE_BAIL(base_ex_table() == -1);
-    find_sect("__modver")->sh_size = UNRESOLVE_REL(find_sect("__ex_table")->sh_offset) - modvertmp;
-
-finish:
-    result = 0;
-fail:
-    return result;
-}
-
 int kern_img::base_ksymtab_strings()
 {
     int result = -1;
@@ -242,8 +200,10 @@ int kern_img::base_ex_table()
     Elf64_Shdr* inittextSec = 0;
     size_t ex_tableSz = 0;
 
+    // check if ex_table already exists
     FINISH_IF(check_sect("__ex_table", NULL) == 0);
 
+    // dependencies
     SAFE_BAIL(check_sect("__modver", &modverSec) == -1);
     SAFE_BAIL(check_sect(".init.text", &inittextSec) == -1);
 
@@ -281,7 +241,7 @@ int kern_img::base_modver()
     Elf64_Shdr* paramSec = 0;
 
     // check if modver already exists
-    FINISH_IF(check_sect("__modver", NULL) == -1);
+    FINISH_IF(check_sect("__modver", NULL) == 0);
 
     // grab the base that i need
     SAFE_BAIL(check_sect("__param", &paramSec) == -1);
@@ -303,6 +263,111 @@ fail:
     return result;
 }
 
+// routine to be used for dynamic use, the relocation table will fill these up,
+// maybe someday i can see how they are filled in static use as well.
+int kern_img::base_ksymtab_kcrctab_ksymtabstrings()
+{
+#define TARGET_KSYMTAB_SEARCH_STR followStr
+    int result = -1;
+    Elf64_Shdr* text_shdr = 0;
+    Elf64_Shdr* init_text_shdr = 0;
+    char* kBuffer = 0;
+    size_t searchSz = 0;
+    char searchStr[] = "module.sig_enforce";
+    char followStr[] = "nomodule";
+    int i = 0;
+
+    // check if all 3 already exists
+    FINISH_IF((check_sect("__ksymtab", NULL) == 0) &&
+        (check_sect("__kcrctab", NULL) == 0) &&
+        (check_sect("__ksymtab_strings", NULL) == 0)
+        );
+
+    SAFE_BAIL(check_sect(".head.text", &text_shdr) == -1);
+    SAFE_BAIL(check_sect(".init.text", &init_text_shdr) == -1);
+    
+    // if not, begin the search! brute force for our string, with an upper bound
+    // limit of the .init.text section. Once we get there we have to stop
+    // reading or kernel panic.
+
+    // skip a section by starting at the .text, though if we can't guarantee
+    // alignment.... may have to do .head.text, which should only be an
+    // additional page or so.
+    searchSz = init_text_shdr->sh_offset - text_shdr->sh_offset;
+    SAFE_BAIL(live_kern_addr((void*)text_shdr->sh_offset, searchSz, (void**)&kBuffer) == -1);
+
+    for (; i < searchSz - sizeof(TARGET_KSYMTAB_SEARCH_STR); i++)
+    {
+        if (memcmp(&kBuffer[i], TARGET_KSYMTAB_SEARCH_STR, sizeof(TARGET_KSYMTAB_SEARCH_STR)) == 0)
+        {
+            // if nomodule was a more common string, we cwould filter as done
+            // belose.
+            // int j = i + sizeof(searchStr);
+            // if (memcmp(&kBuffer[j], followStr, sizeof(followStr)) == 0)
+            // {
+                goto found;
+            // }
+        }
+    }
+    goto fail;
+
+found:
+    i += sizeof(TARGET_KSYMTAB_SEARCH_STR);
+
+finish:
+    result = 0;
+fail:
+    SAFE_FREE(kBuffer);
+    return result;
+}
+
+// this is a modverparam search, that only works if you havev the symbol
+// start_kernel, which means that the .init.text section must be readable. It
+// seems that for live kernels this isn't the case, so we will only use this
+// routine for static analysis of kernels.
+int kern_img::base_modverparam()
+{
+    int result = -1;
+    instSet getB;
+    uint32_t* modverAddr = 0;
+    size_t modverOff = 0;
+    size_t modvertmp = 0;
+    size_t paramtmp = 0;
+
+    // check if we already have what we are looking for
+    FINISH_IF((check_sect("__modver", NULL) == 0) && (check_sect("__param", NULL) == 0));
+
+    getB.clearInternals();
+    getB.addNewInst(cOperand::createADRP<saveVar_t, saveVar_t>(getB.checkOperand(0), getB.checkOperand(1)));
+    getB.addNewInst(cOperand::createADRP<saveVar_t, saveVar_t>(getB.checkOperand(2), getB.checkOperand(3)));
+    getB.addNewInst(cOperand::createASI<saveVar_t, saveVar_t, saveVar_t>(getB.checkOperand(0), getB.checkOperand(0), getB.checkOperand(4)));
+    getB.addNewInst(cOperand::createASI<saveVar_t, saveVar_t, saveVar_t>(getB.checkOperand(2), getB.checkOperand(2), getB.checkOperand(5)));
+    getB.addNewInst(cOperand::createLI<saveVar_t, size_t, size_t, size_t>(getB.checkOperand(6), X31,  0x39, 0x3));
+
+    SAFE_BAIL(kernel_search(&getB, start_kernel, PAGE_SIZE, &modverAddr) == -1);
+
+    getB.getVar(3, &modverOff);
+    modvertmp = modverOff + ((size_t)(modverAddr + sizeof(uint32_t)) & ~PAGE_MASK);
+    getB.getVar(5, &modverOff);
+    modvertmp += modverOff;
+    insert_section("__modver", SHT_PROGBITS, 0, (size_t)modvertmp, (size_t)modvertmp, 0, 0, 0, 8, 0);
+
+    getB.getVar(1, &modverOff);
+    paramtmp = modverOff + ((size_t)(modverAddr) & ~PAGE_MASK);
+    getB.getVar(4, &modverOff);
+    paramtmp += modverOff;
+    insert_section("__param", SHT_PROGBITS, 0, (size_t)paramtmp, (size_t)paramtmp, modvertmp - paramtmp, 0, 0, 8, 0);
+
+    SAFE_BAIL(base_ex_table() == -1);
+    find_sect("__modver")->sh_size = UNRESOLVE_REL(find_sect("__ex_table")->sh_offset) - modvertmp;
+
+finish:
+    result = 0;
+fail:
+    return result;
+}
+
+// since don't have start_kernel, probably not gonna work for static either.
 int kern_img::base_init_data()
 {
     int result = -1;

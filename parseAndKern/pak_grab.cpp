@@ -26,7 +26,9 @@ int kern_img::live_kern_addr(void* target_kernel_address, size_t size_kernel_buf
 
     newKernelAddress = calloc(size_kernel_buf, 1);
     SAFE_BAIL(newKernelAddress == 0);
-    SAFE_BAIL(kRead(target_kernel_address, size_kernel_buf, (size_t)target_kernel_address) == -1);
+    SAFE_BAIL(kRead(newKernelAddress, size_kernel_buf, (size_t)target_kernel_address) == -1);
+
+    *out_live_addr = newKernelAddress;
 
     result = 0;
     goto finish;
@@ -46,6 +48,7 @@ int kern_img::kernel_search(instSet* getB, void* img_var, size_t img_var_sz, uin
 
     result = 0;
 fail:
+    SAFE_LIVE_FREE(img_var_local);
     return result;
 }
 
@@ -61,6 +64,7 @@ int kern_img::grab_sinittext()
 
     result = 0;
 fail:
+    SAFE_LIVE_FREE(binBegMap);
     return result;
 }
 

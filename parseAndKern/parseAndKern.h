@@ -6,6 +6,7 @@
 #include <string>
 #include <elf.h>
 
+#include <localUtil.h>
 #include <ibeSet.h>
 #include <drv_share.h>
 #include "spare_vmlinux.h"
@@ -18,6 +19,12 @@
 
 #define UNRESOLVE_REL(x) \
     ((size_t)x + (size_t)binBegin)
+
+#define SAFE_LIVE_FREE(x) \
+    if (live_kernel == true) \
+    { \
+        SAFE_FREE(x); \
+    }
 
 class kern_img
 {
@@ -44,9 +51,8 @@ public:
     static kern_img* grab_live_kernel(void* kern_base)
     {
         kern_img* result = 0;
-        void* binBegin = 0;
 
-        result = new kern_img((uint32_t*)binBegin);
+        result = new kern_img((uint32_t*)kern_base);
         SAFE_BAIL(result->parseAndGetGlobals() == -1);
 
         goto finish;
@@ -107,6 +113,8 @@ private:
     int base_inits();
     int base_new_shstrtab();
     int base_init_data();
+
+    int base_ksymtab_kcrctab_ksymtabstrings();
 
     std::vector<std::pair<std::string, Elf64_Shdr*>> sect_list;
     std::vector<std::pair<std::string, Elf64_Phdr*>> prog_list;
