@@ -73,6 +73,8 @@ public:
     // under the condition that we have a live kernel, translation routine.
     int live_kern_addr(void* target_kernel_address, size_t size_kernel_buf, void** out_live_addr);
     int kernel_search(instSet* getB, void* img_var, size_t img_var_sz, uint32_t** out_img_off);
+    int kernel_search_seq(void* img_var, size_t img_var_sz, uint8_t* byte_search, size_t search_sz,
+        size_t offset, size_t step, bool match, void** out_img_off);
     
     // insertion function to be used, should be the only interface for adding new values
     void insert_section(std::string sec_name, uint16_t sh_type, uint64_t sh_flags,

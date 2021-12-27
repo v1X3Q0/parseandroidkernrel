@@ -37,12 +37,19 @@ int kern_img::parseAndGetGlobals()
     }
 
     SAFE_BAIL(base_inits() == -1);
-    SAFE_BAIL(base_modverparam() == -1);
-    SAFE_BAIL(base_ksymtab_strings() == -1);
-    SAFE_BAIL(base_kcrctab() == -1);
-    SAFE_BAIL(base_ksymtab() == -1);
-    SAFE_BAIL(base_ex_table() == -1);
-    SAFE_BAIL(base_new_shstrtab() == -1);
+    if (live_kernel == false)
+    {
+        SAFE_BAIL(base_modverparam() == -1);
+        SAFE_BAIL(base_ksymtab_strings() == -1);
+        SAFE_BAIL(base_kcrctab() == -1);
+        SAFE_BAIL(base_ksymtab() == -1);
+        SAFE_BAIL(base_ex_table() == -1);
+        SAFE_BAIL(base_new_shstrtab() == -1);
+    }
+    else if (live_kernel == true)
+    {
+        SAFE_BAIL(base_ksymtab_kcrctab_ksymtabstrings() == -1);
+    }
 
     vector_pair_sort<std::string, Elf64_Shdr*>(&sect_list, cmp_Shdr);
     vector_pair_sort<std::string, Elf64_Phdr*>(&prog_list, cmp_Phdr);

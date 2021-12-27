@@ -12,17 +12,12 @@
 #include "spare_vmlinux.h"
 #include "parseAndKern.h"
 
+// only for live kernel definitions
+#ifdef LIVE_KERNEL
 int kern_img::live_kern_addr(void* target_kernel_address, size_t size_kernel_buf, void** out_live_addr)
 {
     int result = -1;
     void* newKernelAddress = 0;
-
-    if (live_kernel == false)
-    {
-        *out_live_addr = target_kernel_address;
-        result = 0;
-        goto finish;
-    }
 
     newKernelAddress = calloc(size_kernel_buf, 1);
     SAFE_BAIL(newKernelAddress == 0);
@@ -37,7 +32,50 @@ fail:
 finish:
     return result;
 }
+#else
+int kern_img::live_kern_addr(void* target_kernel_address, size_t size_kernel_buf, void** out_live_addr)
+{
+    int result = -1;
+    *out_live_addr = target_kernel_address;
+    result = 0;
+    return result;
+}
+#endif
 
+int kern_img::kernel_search_seq(void* img_var, size_t img_var_sz, uint8_t* byte_search, size_t search_sz,
+    size_t offset, size_t step, bool match, void** out_img_off)
+{
+    int result = -1;
+    uint8_t* kern_copy = 0;
+    uint8_t* iterPoint = 0;
+
+    SAFE_BAIL(live_kern_addr(img_var, img_var_sz, (void**)&kern_copy) == -1);
+    iterPoint = (uint8_t*)((size_t)kern_copy + offset);
+
+    for (int kern_index = offset; kern_index < img_var_sz; kern_index += step, iterPoint += step)
+    {
+        // principal behind this is we can search for, for instance, a nonzero block using this same
+        // routine. so  if 0 == 0) == true, then it will keep going. but if non == 0) ~ false, then
+        // all good
+        if ((memcmp(byte_search, iterPoint, search_sz) == 0) == match)
+        {
+            *out_img_off = iterPoint;
+            goto found;
+        }
+    }
+    goto fail;
+found:
+    if (live_kernel == true)
+    {
+        *out_img_off = (void**)((size_t)iterPoint - (size_t)kern_copy + (size_t)img_var);
+    }
+    result = 0;
+fail:
+    SAFE_LIVE_FREE(kern_copy);
+    return result;
+}
+
+// kinda for both?
 int kern_img::kernel_search(instSet* getB, void* img_var, size_t img_var_sz, uint32_t** out_img_off)
 {
     int result = -1;
@@ -45,6 +83,10 @@ int kern_img::kernel_search(instSet* getB, void* img_var, size_t img_var_sz, uin
 
     SAFE_BAIL(live_kern_addr(img_var, img_var_sz, &img_var_local) == -1);
     SAFE_BAIL(getB->findPattern((uint32_t*)img_var_local, img_var_sz, out_img_off) == -1);
+    if (live_kernel == true)
+    {
+        *out_img_off = (uint32_t*)((size_t)*out_img_off - (size_t)img_var_local + (size_t)binBegin);
+    }
 
     result = 0;
 fail:

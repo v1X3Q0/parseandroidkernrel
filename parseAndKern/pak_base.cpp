@@ -18,13 +18,22 @@ int kern_img::base_inits()
     instSet getB;
     uint32_t* text_start = 0;
 
+    uint32_t nonzeroLook = 0;
     FINISH_IF((check_sect(".head.text", NULL) == 0) &&
         (check_sect(".text", NULL) == 0) && (check_sect(".init.text", NULL) == 0));
 
     insert_section(".head.text", SHT_PROGBITS, 0, (size_t)binBegin, (size_t)binBegin, 0, 0, 0, 4, 0);
     
-    getB.addNewInst(cOperand::createASI<size_t, size_t, saveVar_t>(SP, SP, getB.checkOperand(0)));
-    SAFE_BAIL(kernel_search(&getB, binBegin, PAGE_SIZE * 4, &text_start) == -1);
+    // SO originally i searched for the first sub sp operation. HOWEVER it seems like on different
+    // devices and kernels the first routine may not even start with a sub, but rather an stp.
+    // if this is the case.... well gonna be harder to detect. so another option is either looking for
+    // page, or first nonzero word after 0x40, gonna stick with the latter.
+
+    // getB.addNewInst(cOperand::createASI<size_t, size_t, saveVar_t>(SP, SP, getB.checkOperand(0)));
+    // SAFE_BAIL(kernel_search(&getB, binBegin, PAGE_SIZE * 4, &text_start) == -1);
+
+    SAFE_BAIL(kernel_search_seq(binBegin, PAGE_SIZE * 2, (uint8_t*)&nonzeroLook, sizeof(nonzeroLook),
+        0x40, sizeof(nonzeroLook), false, (void**)&text_start) == -1);
     find_sect(".head.text")->sh_size = (size_t)text_start - (size_t)binBegin;
     insert_section(".text", SHT_PROGBITS, 0, (size_t)text_start, (size_t)text_start, 0, 0, 0, 2048, 0);
 
@@ -60,10 +69,12 @@ int kern_img::base_ksymtab_strings()
     // grab the base that i need
     SAFE_BAIL(check_sect("__param", &paramSec) == -1);
 
+#ifdef LIVE_KERNEL
+#else
+#endif
     if (live_kernel == true)
     {
-        ksymstrBuf = calloc(ksymstrAssumeSize, 1);
-        kRead(ksymstrBuf, ksymstrAssumeSize, paramSec->sh_offset - ksymstrAssumeSize);
+        live_kern_addr((void*)(paramSec->sh_offset - ksymstrAssumeSize), ksymstrAssumeSize, &ksymstrBuf);
         paramSec_start = (size_t)ksymstrBuf + ksymstrAssumeSize;
     }
     else if (live_kernel == false)
@@ -260,64 +271,6 @@ int kern_img::base_modver()
 finish:
     result = 0;
 fail:
-    return result;
-}
-
-// routine to be used for dynamic use, the relocation table will fill these up,
-// maybe someday i can see how they are filled in static use as well.
-int kern_img::base_ksymtab_kcrctab_ksymtabstrings()
-{
-#define TARGET_KSYMTAB_SEARCH_STR followStr
-    int result = -1;
-    Elf64_Shdr* text_shdr = 0;
-    Elf64_Shdr* init_text_shdr = 0;
-    char* kBuffer = 0;
-    size_t searchSz = 0;
-    char searchStr[] = "module.sig_enforce";
-    char followStr[] = "nomodule";
-    int i = 0;
-
-    // check if all 3 already exists
-    FINISH_IF((check_sect("__ksymtab", NULL) == 0) &&
-        (check_sect("__kcrctab", NULL) == 0) &&
-        (check_sect("__ksymtab_strings", NULL) == 0)
-        );
-
-    SAFE_BAIL(check_sect(".head.text", &text_shdr) == -1);
-    SAFE_BAIL(check_sect(".init.text", &init_text_shdr) == -1);
-    
-    // if not, begin the search! brute force for our string, with an upper bound
-    // limit of the .init.text section. Once we get there we have to stop
-    // reading or kernel panic.
-
-    // skip a section by starting at the .text, though if we can't guarantee
-    // alignment.... may have to do .head.text, which should only be an
-    // additional page or so.
-    searchSz = init_text_shdr->sh_offset - text_shdr->sh_offset;
-    SAFE_BAIL(live_kern_addr((void*)text_shdr->sh_offset, searchSz, (void**)&kBuffer) == -1);
-
-    for (; i < searchSz - sizeof(TARGET_KSYMTAB_SEARCH_STR); i++)
-    {
-        if (memcmp(&kBuffer[i], TARGET_KSYMTAB_SEARCH_STR, sizeof(TARGET_KSYMTAB_SEARCH_STR)) == 0)
-        {
-            // if nomodule was a more common string, we cwould filter as done
-            // belose.
-            // int j = i + sizeof(searchStr);
-            // if (memcmp(&kBuffer[j], followStr, sizeof(followStr)) == 0)
-            // {
-                goto found;
-            // }
-        }
-    }
-    goto fail;
-
-found:
-    i += sizeof(TARGET_KSYMTAB_SEARCH_STR);
-
-finish:
-    result = 0;
-fail:
-    SAFE_FREE(kBuffer);
     return result;
 }
 

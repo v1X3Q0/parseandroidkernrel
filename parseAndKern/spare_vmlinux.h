@@ -52,4 +52,15 @@ struct kernel_param {
 	};
 };
 
+typedef struct {
+	const kernel_symbol *start, *stop;
+	const unsigned long *crcs;
+	enum {
+		NOT_GPL_ONLY,
+		GPL_ONLY,
+		WILL_BE_GPL_ONLY,
+	} licence;
+	bool unused;
+} symsearch;
+
 #endif
