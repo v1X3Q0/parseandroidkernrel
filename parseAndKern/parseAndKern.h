@@ -68,6 +68,7 @@ public:
 
     size_t resolveRel(size_t rebase);
     int findKindInKstr(const char* newString, int* index);
+    int ksym_dlsym(const char* newString, size_t* out_address);
     int parseAndGetGlobals();
 
     // under the condition that we have a live kernel, translation routine.
@@ -93,6 +94,7 @@ public:
     size_t get_ksyms_count() { return ksyms_count; };
     uint32_t* get_kcrctab() { return (uint32_t*)UNRESOLVE_REL(find_sect("__kcrctab")->sh_offset); };
 private:
+    std::map<std::string, size_t> offset_table;
     bool live_kernel;
     // private constructors for internal use only
     kern_img(uint32_t* binBegin_a) : binBegin(binBegin_a), live_kernel(true) {};
@@ -104,6 +106,8 @@ private:
     int grab_primary_switch();
     int grab_primary_switched();
     int grab_start_kernel_g();
+
+    int grab_task_struct_offs();
 
     // finding sections in the binary
     int base_modverparam();

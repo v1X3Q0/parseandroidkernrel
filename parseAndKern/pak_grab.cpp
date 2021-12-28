@@ -12,88 +12,6 @@
 #include "spare_vmlinux.h"
 #include "parseAndKern.h"
 
-// only for live kernel definitions
-#ifdef LIVE_KERNEL
-int kern_img::live_kern_addr(void* target_kernel_address, size_t size_kernel_buf, void** out_live_addr)
-{
-    int result = -1;
-    void* newKernelAddress = 0;
-
-    newKernelAddress = calloc(size_kernel_buf, 1);
-    SAFE_BAIL(newKernelAddress == 0);
-    SAFE_BAIL(kRead(newKernelAddress, size_kernel_buf, (size_t)target_kernel_address) == -1);
-
-    *out_live_addr = newKernelAddress;
-
-    result = 0;
-    goto finish;
-fail:
-    SAFE_FREE(newKernelAddress);
-finish:
-    return result;
-}
-#else
-int kern_img::live_kern_addr(void* target_kernel_address, size_t size_kernel_buf, void** out_live_addr)
-{
-    int result = -1;
-    *out_live_addr = target_kernel_address;
-    result = 0;
-    return result;
-}
-#endif
-
-int kern_img::kernel_search_seq(void* img_var, size_t img_var_sz, uint8_t* byte_search, size_t search_sz,
-    size_t offset, size_t step, bool match, void** out_img_off)
-{
-    int result = -1;
-    uint8_t* kern_copy = 0;
-    uint8_t* iterPoint = 0;
-
-    SAFE_BAIL(live_kern_addr(img_var, img_var_sz, (void**)&kern_copy) == -1);
-    iterPoint = (uint8_t*)((size_t)kern_copy + offset);
-
-    for (int kern_index = offset; kern_index < img_var_sz; kern_index += step, iterPoint += step)
-    {
-        // principal behind this is we can search for, for instance, a nonzero block using this same
-        // routine. so  if 0 == 0) == true, then it will keep going. but if non == 0) ~ false, then
-        // all good
-        if ((memcmp(byte_search, iterPoint, search_sz) == 0) == match)
-        {
-            *out_img_off = iterPoint;
-            goto found;
-        }
-    }
-    goto fail;
-found:
-    if (live_kernel == true)
-    {
-        *out_img_off = (void**)((size_t)iterPoint - (size_t)kern_copy + (size_t)img_var);
-    }
-    result = 0;
-fail:
-    SAFE_LIVE_FREE(kern_copy);
-    return result;
-}
-
-// kinda for both?
-int kern_img::kernel_search(instSet* getB, void* img_var, size_t img_var_sz, uint32_t** out_img_off)
-{
-    int result = -1;
-    void* img_var_local = 0;
-
-    SAFE_BAIL(live_kern_addr(img_var, img_var_sz, &img_var_local) == -1);
-    SAFE_BAIL(getB->findPattern((uint32_t*)img_var_local, img_var_sz, out_img_off) == -1);
-    if (live_kernel == true)
-    {
-        *out_img_off = (uint32_t*)((size_t)*out_img_off - (size_t)img_var_local + (size_t)binBegin);
-    }
-
-    result = 0;
-fail:
-    SAFE_LIVE_FREE(img_var_local);
-    return result;
-}
-
 int kern_img::grab_sinittext()
 {
     int result = -1;
@@ -108,78 +26,6 @@ int kern_img::grab_sinittext()
 fail:
     SAFE_LIVE_FREE(binBegMap);
     return result;
-}
-
-void kern_img::insert_section(std::string sec_name, uint16_t sh_type, uint64_t sh_flags,
-    uint64_t sh_addr, uint64_t sh_offset, uint64_t sh_size, uint16_t sh_link,
-    uint16_t sh_info, uint64_t sh_addralign, uint64_t sh_entsize)
-{
-    Elf64_Shdr* newShdr = 0;
-    Elf64_Phdr* newPhdr = 0;
-    Elf64_Word p_type = 0;
-    Elf64_Xword p_align = 0;
-    Elf64_Word p_flags = 0;
-    
-    if (
-        (sec_name == ".symtab") ||
-        (sec_name == ".strtab") ||
-        (sec_name == ".shstrtab")
-        )
-    {
-
-    }
-    else
-    {
-        sh_addr = R_KA(RESOLVE_REL(sh_addr));
-        sh_offset = RESOLVE_REL(sh_offset);
-        p_type = PT_LOAD;
-        p_align = 0x10000;
-
-        sh_flags = SHF_ALLOC;
-        p_flags = PF_R;
-        // found a text, add executable flag
-        if (sec_name.find("text") != std::string::npos)
-        {
-            sh_flags |= SHF_EXECINSTR | SHF_WRITE;
-            p_flags |= PF_X | PF_W;
-        }
-        else
-        {
-            sh_flags |= SHF_WRITE;
-            p_flags |= PF_W;
-        }
-    }
-
-    newShdr = new Elf64_Shdr{
-        0,
-        sh_type,
-        sh_flags,
-        sh_addr,
-        sh_offset,
-        sh_size,
-        sh_link,
-        sh_info,
-        sh_addralign,
-        sh_entsize
-        };
-
-    sect_list.push_back({sec_name, newShdr});
-
-    if (p_type == PT_LOAD)
-    {
-        newPhdr = new Elf64_Phdr{
-            p_type,
-            p_flags,
-            sh_offset,
-            sh_addr,
-            sh_addr,
-            sh_size,
-            sh_size,
-            p_align
-        };
-
-        prog_list.push_back({sec_name, newPhdr});
-    }
 }
 
 int kern_img::grab_primary_switch()
@@ -263,3 +109,47 @@ fail:
     return result;
 }
 
+int kern_img::grab_task_struct_offs()
+{
+    int result = -1;
+    size_t init_task = 0;
+    void* init_task_mapped = 0;
+    size_t* memberIter = 0;
+    size_t pushable_tasks = 0;
+    size_t tasks = 0;
+
+    SAFE_BAIL(ksym_dlsym("init_task", &init_task) == -1);
+    SAFE_BAIL(live_kern_addr((void*)init_task, PAGE_SIZE, &init_task_mapped) == -1);
+
+    memberIter = (size_t*)init_task_mapped;
+    for (int i = 0; i < PAGE_SIZE; i += 8)
+    {
+        int curIter = i / sizeof(size_t);
+        
+        if (
+            (memberIter[curIter] == memberIter[curIter + 1]) &&
+            (memberIter[curIter + 2] == memberIter[curIter + 3]) &&
+            (memberIter[curIter] != 0) &&
+            (memberIter[curIter + 2] != 0)
+            )
+        {
+            // we are at task->pushable_tasks.prio_list, so the base of a
+            // plist_node is at current - 8, the size of prio, plist_node's
+            // first member. then subtract the size of another list to get
+            // the offset for the tasks structure.
+            pushable_tasks = i - sizeof(size_t) * 1;
+            tasks = i - sizeof(size_t) * 3;
+            goto found;
+        }
+    }
+    goto fail;
+
+found:
+    offset_table["task_struct.tasks"] = tasks;
+    offset_table["task_struct.pushable_tasks"] = pushable_tasks;
+
+    result = 0;
+fail:
+    SAFE_LIVE_FREE(init_task_mapped);
+    return result;
+}

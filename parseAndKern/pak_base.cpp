@@ -12,6 +12,81 @@
 #include "spare_vmlinux.h"
 #include "parseAndKern.h"
 
+void kern_img::insert_section(std::string sec_name, uint16_t sh_type, uint64_t sh_flags,
+    uint64_t sh_addr, uint64_t sh_offset, uint64_t sh_size, uint16_t sh_link,
+    uint16_t sh_info, uint64_t sh_addralign, uint64_t sh_entsize)
+{
+    Elf64_Shdr* newShdr = 0;
+    Elf64_Phdr* newPhdr = 0;
+    Elf64_Word p_type = 0;
+    Elf64_Xword p_align = 0;
+    Elf64_Word p_flags = 0;
+    
+    if (
+        (sec_name == ".symtab") ||
+        (sec_name == ".strtab") ||
+        (sec_name == ".shstrtab")
+        )
+    {
+
+    }
+    else
+    {
+        if (live_kernel == false)
+        {
+            sh_addr = R_KA(RESOLVE_REL(sh_addr));
+        }
+        sh_offset = RESOLVE_REL(sh_offset);
+        p_type = PT_LOAD;
+        p_align = 0x10000;
+
+        sh_flags = SHF_ALLOC;
+        p_flags = PF_R;
+        // found a text, add executable flag
+        if (sec_name.find("text") != std::string::npos)
+        {
+            sh_flags |= SHF_EXECINSTR | SHF_WRITE;
+            p_flags |= PF_X | PF_W;
+        }
+        else
+        {
+            sh_flags |= SHF_WRITE;
+            p_flags |= PF_W;
+        }
+    }
+
+    newShdr = new Elf64_Shdr{
+        0,
+        sh_type,
+        sh_flags,
+        sh_addr,
+        sh_offset,
+        sh_size,
+        sh_link,
+        sh_info,
+        sh_addralign,
+        sh_entsize
+        };
+
+    sect_list.push_back({sec_name, newShdr});
+
+    if (p_type == PT_LOAD)
+    {
+        newPhdr = new Elf64_Phdr{
+            p_type,
+            p_flags,
+            sh_offset,
+            sh_addr,
+            sh_addr,
+            sh_size,
+            sh_size,
+            p_align
+        };
+
+        prog_list.push_back({sec_name, newPhdr});
+    }
+}
+
 int kern_img::base_inits()
 {
     int result = -1;

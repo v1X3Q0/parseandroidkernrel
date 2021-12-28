@@ -49,13 +49,14 @@ int kern_img::parseAndGetGlobals()
     else if (live_kernel == true)
     {
         SAFE_BAIL(base_ksymtab_kcrctab_ksymtabstrings() == -1);
+        SAFE_BAIL(grab_task_struct_offs() == -1);
     }
 
     vector_pair_sort<std::string, Elf64_Shdr*>(&sect_list, cmp_Shdr);
     vector_pair_sort<std::string, Elf64_Phdr*>(&prog_list, cmp_Phdr);
 
-    SAFE_BAIL(findKindInKstr("printk", &snprintfInd) == -1);
-    snprintfCrc = get_kcrctab()[snprintfInd];
+    // SAFE_BAIL(findKindInKstr("printk", &snprintfInd) == -1);
+    // snprintfCrc = get_kcrctab()[snprintfInd];
 
     result = 0;
 fail:
@@ -100,7 +101,8 @@ int kern_img::findKindInKstr(const char* newString, int* index)
     int i = 0;
 
     SAFE_BAIL(check_sect("__ksymtab_strings", &ksymstrSec) == -1);
-    strIter = (const char*)UNRESOLVE_REL(ksymstrSec->sh_offset);
+    SAFE_BAIL(live_kern_addr((void*)UNRESOLVE_REL(ksymstrSec->sh_offset), ksymstrSec->sh_size, (void**)&strIter) == -1);
+    // strIter = (const char*)UNRESOLVE_REL(ksymstrSec->sh_offset);
 
     for (; i < ksyms_count; i++)
     {
@@ -121,6 +123,49 @@ finish_eval:
 finish:
     result = 0;
 fail:
+    SAFE_LIVE_FREE(strIter);
     return result;
 }
 
+int kern_img::ksym_dlsym(const char* newString, size_t* out_address)
+{
+    int result = -1;
+    const char* kstrBase = 0;
+    const char* kstrIter = 0;
+    Elf64_Shdr* ksymstrSec = 0;
+    Elf64_Shdr* ksymSec = 0;
+    Elf64_Shdr* ksymgplSec = 0;
+    kernel_symbol* ksymIter = 0;
+
+    // get dependencies, we need the ksymtab_str for comparison and the ksymtab has the
+    // out value for us.
+    SAFE_BAIL(check_sect("__ksymtab", &ksymSec) == -1);
+    SAFE_BAIL(check_sect("__ksymtab_gpl", &ksymgplSec) == -1);
+    SAFE_BAIL(check_sect("__ksymtab_strings", &ksymstrSec) == -1);
+
+    SAFE_BAIL(live_kern_addr((void*)UNRESOLVE_REL(ksymSec->sh_offset), ksymSec->sh_size + ksymgplSec->sh_size, (void**)&ksymIter) == -1);
+    SAFE_BAIL(live_kern_addr((void*)UNRESOLVE_REL(ksymstrSec->sh_offset), ksymstrSec->sh_size, (void**)&kstrBase) == -1);
+    // strIter = (const char*)UNRESOLVE_REL(ksymstrSec->sh_offset);
+
+    for (int i = 0; i < ksyms_count; i++)
+    {
+        // resolve against the base of the ksymtab so we can add to the kstrbase
+        kstrIter = (const char*)((ksymIter[i].name - (size_t)ksymstrSec->sh_addr) + (size_t)kstrBase);
+        if (strcmp(newString, kstrIter) == 0)
+        {
+            if (out_address != 0)
+            {
+                *out_address = ksymIter[i].value;
+            }
+            goto found;
+        }
+    }
+    goto fail;
+
+found:
+    result = 0;
+fail:
+    SAFE_LIVE_FREE(ksymIter);
+    SAFE_LIVE_FREE(kstrBase);
+    return result;
+}
