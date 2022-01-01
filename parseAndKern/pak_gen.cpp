@@ -6,7 +6,7 @@
 #include "spare_vmlinux.h"
 #include "parseAndKern.h"
 
-int kern_img::patch_and_write(Elf64_Ehdr* vmlinux_base, Elf64_Shdr* vmlinux_cur, Elf64_Phdr* phBase, size_t offset)
+int kern_static::patch_and_write(Elf64_Ehdr* vmlinux_base, Elf64_Shdr* vmlinux_cur, Elf64_Phdr* phBase, size_t offset)
 {
     int result = -1;
     Elf64_Shdr nullSec = { 0 };
@@ -54,7 +54,7 @@ int kern_img::patch_and_write(Elf64_Ehdr* vmlinux_base, Elf64_Shdr* vmlinux_cur,
     return result;
 }
 
-int kern_img::gen_shstrtab(std::string** out_shstrtab, uint16_t* numSects, uint16_t* shstrtab_index)
+int kern_static::gen_shstrtab(std::string** out_shstrtab, uint16_t* numSects, uint16_t* shstrtab_index)
 {
     std::string shstrtabTmp = "";
     shstrtabTmp += '\0';
@@ -90,7 +90,7 @@ finish:
     return 0;
 }
 
-int kern_img::gen_vmlinux_sz(size_t* outSz, size_t headOffset)
+int kern_static::gen_vmlinux_sz(size_t* outSz, size_t headOffset)
 {
     size_t szTemp = 0;
     std::string* shstrtab_tmp;

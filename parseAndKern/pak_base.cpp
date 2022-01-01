@@ -12,15 +12,60 @@
 #include "spare_vmlinux.h"
 #include "parseAndKern.h"
 
-void kern_img::insert_section(std::string sec_name, uint16_t sh_type, uint64_t sh_flags,
-    uint64_t sh_addr, uint64_t sh_offset, uint64_t sh_size, uint16_t sh_link,
-    uint16_t sh_info, uint64_t sh_addralign, uint64_t sh_entsize)
+void kern_static::insert_section(std::string sec_name, uint64_t sh_offset, uint64_t sh_size)
 {
     Elf64_Shdr* newShdr = 0;
     Elf64_Phdr* newPhdr = 0;
     Elf64_Word p_type = 0;
     Elf64_Xword p_align = 0;
     Elf64_Word p_flags = 0;
+
+    uint16_t sh_type = SHT_PROGBITS;
+    uint64_t sh_flags = 0;
+    uint64_t sh_addr = sh_offset;
+    // uint64_t sh_offset = 0;
+    // uint64_t sh_size = 0;
+    uint16_t sh_link = 0;
+    uint16_t sh_info = 0;
+    uint64_t sh_addralign = 0;
+    uint64_t sh_entsize = 0;
+
+    if (sec_name == ".head.text")
+    {
+        sh_addralign = sizeof(int);
+    }
+    else if (sec_name == ".text")
+    {
+        sh_addralign = 2048;
+    }
+    else if (sec_name == "__ksymtab")
+    {
+        sh_addralign = 8;
+    }
+    else if (sec_name == "__kcrctab")
+    {
+        sh_addralign = 1;
+    }
+    else if (sec_name == "__ksymtab_strings")
+    {
+        sh_addralign = 1;
+    }
+    else if (sec_name == "__param")
+    {
+        sh_addralign = 8;
+    }
+    else if (sec_name == "__modver")
+    {
+        sh_addralign = 8;
+    }
+    else if (sec_name == "__ex_table")
+    {
+        sh_addralign = 8;
+    }
+    else if (sec_name == ".init.text")
+    {
+        sh_addralign = 8;
+    }
     
     if (
         (sec_name == ".symtab") ||
@@ -87,40 +132,7 @@ void kern_img::insert_section(std::string sec_name, uint16_t sh_type, uint64_t s
     }
 }
 
-int kern_img::base_inits()
-{
-    int result = -1;
-    instSet getB;
-    uint32_t* text_start = 0;
-
-    uint32_t nonzeroLook = 0;
-    FINISH_IF((check_sect(".head.text", NULL) == 0) &&
-        (check_sect(".text", NULL) == 0) && (check_sect(".init.text", NULL) == 0));
-
-    insert_section(".head.text", SHT_PROGBITS, 0, (size_t)binBegin, (size_t)binBegin, 0, 0, 0, 4, 0);
-    
-    // SO originally i searched for the first sub sp operation. HOWEVER it seems like on different
-    // devices and kernels the first routine may not even start with a sub, but rather an stp.
-    // if this is the case.... well gonna be harder to detect. so another option is either looking for
-    // page, or first nonzero word after 0x40, gonna stick with the latter.
-
-    // getB.addNewInst(cOperand::createASI<size_t, size_t, saveVar_t>(SP, SP, getB.checkOperand(0)));
-    // SAFE_BAIL(kernel_search(&getB, binBegin, PAGE_SIZE * 4, &text_start) == -1);
-
-    SAFE_BAIL(kernel_search_seq(binBegin, PAGE_SIZE * 2, (uint8_t*)&nonzeroLook, sizeof(nonzeroLook),
-        0x40, sizeof(nonzeroLook), false, (void**)&text_start) == -1);
-    find_sect(".head.text")->sh_size = (size_t)text_start - (size_t)binBegin;
-    insert_section(".text", SHT_PROGBITS, 0, (size_t)text_start, (size_t)text_start, 0, 0, 0, 2048, 0);
-
-    insert_section(".init.text", SHT_PROGBITS, 0, (size_t)_sinittext, (size_t)_sinittext, 0, 0, 0, 8, 0);
-
-finish:
-    result = 0;
-fail:
-    return result;
-}
-
-int kern_img::base_ksymtab_strings()
+int kern_static::base_ksymtab_strings()
 {
     int result = -1;
     const char* curStr = 0;
@@ -149,7 +161,7 @@ int kern_img::base_ksymtab_strings()
 #endif
     if (live_kernel == true)
     {
-        live_kern_addr((void*)(paramSec->sh_offset - ksymstrAssumeSize), ksymstrAssumeSize, &ksymstrBuf);
+        live_kern_addr(paramSec->sh_offset - ksymstrAssumeSize, ksymstrAssumeSize, &ksymstrBuf);
         paramSec_start = (size_t)ksymstrBuf + ksymstrAssumeSize;
     }
     else if (live_kernel == false)
@@ -187,7 +199,7 @@ int kern_img::base_ksymtab_strings()
 
 finish_eval:
     ksymtabstr_tmp = (size_t)(curStr - targSymLen + 1);
-    insert_section("__ksymtab_strings", SHT_PROGBITS, 0, ksymtabstr_tmp, ksymtabstr_tmp, paramSec_start - ksymtabstr_tmp, 0, 0, 1, 0);
+    insert_section("__ksymtab_strings", ksymtabstr_tmp, paramSec_start - ksymtabstr_tmp);
 finish:
     result = 0;
 fail:
@@ -195,7 +207,7 @@ fail:
     return result;
 }
 
-int kern_img::base_kcrctab()
+int kern_static::base_kcrctab()
 {
     int result = -1;
     size_t crcCount = 0;
@@ -223,7 +235,7 @@ int kern_img::base_kcrctab()
 
 finish_eval:
     crcIter++;
-    insert_section("__kcrctab", SHT_PROGBITS, 0, (size_t)crcIter, (size_t)crcIter, 0, 0, 0, 1, 0);
+    insert_section("__kcrctab", (size_t)crcIter, 0);
     find_sect("__kcrctab")->sh_size = UNRESOLVE_REL(find_sect("__ksymtab_strings")->sh_offset) - (size_t)crcIter;
     ksyms_count = crcCount;
 finish:
@@ -232,7 +244,7 @@ fail:
     return result;
 }
 
-int kern_img::base_ksymtab()
+int kern_static::base_ksymtab()
 {
     // here is asspull city.... gonna look for a hella regex. in execution, the routine
     // _request_firmware has a call to kmem_cache_alloc_trace(kmalloc_caches[0][7], 0x14080C0u, 0x20uLL);
@@ -251,7 +263,7 @@ int kern_img::base_ksymtab()
 
     SAFE_BAIL(ksyms_count == 0);
     ksymtabTmp = (UNRESOLVE_REL(crcSec->sh_offset) - sizeof(kernel_symbol) * ksyms_count);
-    insert_section("__ksymtab", SHT_PROGBITS, 0, ksymtabTmp, ksymtabTmp, 0, 0, 0, 8, 0);
+    insert_section("__ksymtab", ksymtabTmp, 0);
 
     // instSet getB;
     // size_t start_kernelOff = 0;
@@ -278,7 +290,7 @@ fail:
     return result;
 }
 
-int kern_img::base_ex_table()
+int kern_static::base_ex_table()
 {
     int result = -1;
     void** modverIter = 0;
@@ -302,7 +314,7 @@ int kern_img::base_ex_table()
 
     ex_tableSz = UNRESOLVE_REL(inittextSec->sh_offset) - (uint64_t)modverIter;
 
-    insert_section("__ex_table", SHT_PROGBITS, 0, (size_t)modverIter, (size_t)modverIter, ex_tableSz, 0, 0, 8, 0);
+    insert_section("__ex_table", (size_t)modverIter, ex_tableSz);
 
 finish:
     result = 0;
@@ -310,17 +322,17 @@ fail:
     return result;
 }
 
-int kern_img::base_new_shstrtab()
+int kern_static::base_new_shstrtab()
 {
     char strtabRef[] = ".shstrtab";
     std::string* shtstrtab_tmp = 0;
 
     gen_shstrtab(&shtstrtab_tmp, NULL, NULL);
-    insert_section(strtabRef, SHT_STRTAB, 0, 0, kern_sz, shtstrtab_tmp->size() + sizeof(strtabRef), 0, 0, 1, 0);
+    insert_section(strtabRef, kern_sz, shtstrtab_tmp->size() + sizeof(strtabRef));
     return 0;
 }
 
-int kern_img::base_modver()
+int kern_static::base_modver()
 {
     int result = -1;
     kernel_param* paramIter = 0;
@@ -339,7 +351,7 @@ int kern_img::base_modver()
         paramIter++;
     }
 
-    insert_section("__modver", SHT_PROGBITS, 0, (size_t)paramIter, (size_t)paramIter, 0, 0, 0, 8, 0);
+    insert_section("__modver", (size_t)paramIter, 0);
     base_ex_table();
     find_sect("__modver")->sh_size = UNRESOLVE_REL(find_sect("__ex_table")->sh_offset) - (size_t)paramIter;
 
@@ -353,7 +365,7 @@ fail:
 // start_kernel, which means that the .init.text section must be readable. It
 // seems that for live kernels this isn't the case, so we will only use this
 // routine for static analysis of kernels.
-int kern_img::base_modverparam()
+int kern_static::base_modverparam()
 {
     int result = -1;
     instSet getB;
@@ -372,19 +384,19 @@ int kern_img::base_modverparam()
     getB.addNewInst(cOperand::createASI<saveVar_t, saveVar_t, saveVar_t>(getB.checkOperand(2), getB.checkOperand(2), getB.checkOperand(5)));
     getB.addNewInst(cOperand::createLI<saveVar_t, size_t, size_t, size_t>(getB.checkOperand(6), X31,  0x39, 0x3));
 
-    SAFE_BAIL(kernel_search(&getB, start_kernel, PAGE_SIZE, &modverAddr) == -1);
+    SAFE_BAIL(kernel_search(&getB, KSYM_V(start_kernel), PAGE_SIZE, &modverAddr) == -1);
 
     getB.getVar(3, &modverOff);
     modvertmp = modverOff + ((size_t)(modverAddr + sizeof(uint32_t)) & ~PAGE_MASK);
     getB.getVar(5, &modverOff);
     modvertmp += modverOff;
-    insert_section("__modver", SHT_PROGBITS, 0, (size_t)modvertmp, (size_t)modvertmp, 0, 0, 0, 8, 0);
+    insert_section("__modver", (size_t)modvertmp, 0);
 
     getB.getVar(1, &modverOff);
     paramtmp = modverOff + ((size_t)(modverAddr) & ~PAGE_MASK);
     getB.getVar(4, &modverOff);
     paramtmp += modverOff;
-    insert_section("__param", SHT_PROGBITS, 0, (size_t)paramtmp, (size_t)paramtmp, modvertmp - paramtmp, 0, 0, 8, 0);
+    insert_section("__param", (size_t)paramtmp, modvertmp - paramtmp);
 
     SAFE_BAIL(base_ex_table() == -1);
     find_sect("__modver")->sh_size = UNRESOLVE_REL(find_sect("__ex_table")->sh_offset) - modvertmp;
@@ -396,7 +408,7 @@ fail:
 }
 
 // since don't have start_kernel, probably not gonna work for static either.
-int kern_img::base_init_data()
+int kern_static::base_init_data()
 {
     int result = -1;
     instSet getB;
@@ -408,7 +420,7 @@ int kern_img::base_init_data()
         getB.checkOperand(0), getB.checkOperand(1)));
     getB.addNewInst(cOperand::createLDRB<saveVar_t, saveVar_t, saveVar_t>(
         getB.checkOperand(2), getB.checkOperand(0), getB.checkOperand(4)));
-    SAFE_BAIL(kernel_search(&getB, start_kernel, PAGE_SIZE, &init_data_off) == -1);
+    SAFE_BAIL(kernel_search(&getB, KSYM_V(start_kernel), PAGE_SIZE, &init_data_off) == -1);
 
     getB.getVar(0, &init_data_l);
     getB.getVar(4, &init_data_final);
