@@ -244,52 +244,6 @@ fail:
     return result;
 }
 
-int kern_static::base_ksymtab()
-{
-    // here is asspull city.... gonna look for a hella regex. in execution, the routine
-    // _request_firmware has a call to kmem_cache_alloc_trace(kmalloc_caches[0][7], 0x14080C0u, 0x20uLL);
-    // where args 2 and 3 are the gfp flags and size. because i believe them to be measurable enough,
-    // as well as arguments, lets give them a looksie....
-
-    int result = -1;
-    size_t ksymtabTmp = 0;
-    Elf64_Shdr* crcSec = 0;
-
-    // check if ksymtab already exists
-    FINISH_IF(check_sect("__ksymtab", NULL) == 0);
-
-    // grab the base that i need
-    SAFE_BAIL(check_sect("__kcrctab", &crcSec) == -1);
-
-    SAFE_BAIL(ksyms_count == 0);
-    ksymtabTmp = (UNRESOLVE_REL(crcSec->sh_offset) - sizeof(kernel_symbol) * ksyms_count);
-    insert_section("__ksymtab", ksymtabTmp, 0);
-
-    // instSet getB;
-    // size_t start_kernelOff = 0;
-    // uint32_t* modverAddr = 0;
-    // size_t modverOff = 0;
-
-    // getB.addNewInst(cOperand::createMWI<size_t, size_t>(1, 0x80c0));
-    // getB.addNewInst(cOperand::createB<saveVar_t>(getB.checkOperand(0)));
-    // SAFE_BAIL(getB.findPattern(__primary_switched_g, PAGE_SIZE, &start_kernel_g) == -1);
-
-    // getB.getVar(0, &start_kernelOff);
-    // start_kernel_g = (uint32_t*)(start_kernelOff + (size_t)start_kernel_g);
-
-    // getB.clearInternals();
-    // getB.addNewInst(cOperand::createADRP<saveVar_t, saveVar_t>(getB.checkOperand(0), getB.checkOperand(1)));
-    // getB.addNewInst(cOperand::createADRP<saveVar_t, saveVar_t>(getB.checkOperand(2), getB.checkOperand(3)));
-    // getB.addNewInst(cOperand::createASI<saveVar_t, saveVar_t, saveVar_t>(getB.checkOperand(0), getB.checkOperand(0), getB.checkOperand(4)));
-    // getB.addNewInst(cOperand::createASI<saveVar_t, saveVar_t, saveVar_t>(getB.checkOperand(2), getB.checkOperand(2), getB.checkOperand(5)));
-    // getB.addNewInst(cOperand::createLI<saveVar_t, size_t, size_t, size_t>(getB.checkOperand(6), X31,  0x39, 0x3));
-
-finish:
-    result = 0;
-fail:
-    return result;
-}
-
 int kern_static::base_ex_table()
 {
     int result = -1;

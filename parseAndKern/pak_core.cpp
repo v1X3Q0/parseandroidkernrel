@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <elf.h>
 
 #include <hdeA64.h>
 #include <ibeSet.h>
@@ -56,3 +57,16 @@ Elf64_Phdr* kern_static::find_prog(std::string lookupKey)
     return vector_pair_key_find<std::string, Elf64_Phdr*>(&prog_list, lookupKey);
 }
 
+int kern_static::populate_kcrc_map()
+{
+    int result = -1;
+    Elf64_Shdr* kstrtab_sec = 0;
+    std::vector<const char*> kstrtab;
+    std::vector<const char*> kstrtab_gpl;
+
+    SAFE_BAIL(check_sect("__ksymtab_string", &kstrtab_sec) == -1);
+
+    result = 0;
+fail:
+    return result;
+}

@@ -9,6 +9,7 @@
 #include <parseAndKern.h>
 #include "patchCrc.h"
 #include "iterate_dir.h"
+#include <kernel_block.h>
 
 int usage(const char* name)
 {
@@ -95,7 +96,7 @@ int main(int argc, char **argv)
     }
     else if (kernimg_targ != 0)
     {
-        parsedKernimg = kern_img::allocate_kern_img(kernimg_targ);
+        parsedKernimg = kernel_block::allocate_kern_img<kern_static>(kernimg_targ);
         SAFE_FAIL(parsedKernimg == 0, "kernel image  was invalid\n");
         ksymBase = parsedKernimg->get_ksymtab();
         ksymCount = parsedKernimg->get_ksyms_count();

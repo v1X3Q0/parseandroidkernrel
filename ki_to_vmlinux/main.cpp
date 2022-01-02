@@ -13,6 +13,8 @@
 #include <parseAndKern.h>
 #include <drv_share.h>
 
+#include <kernel_block.h>
+
 int usage(const char* name)
 {
     fprintf(stderr, "Usage: %s [-v vmlinux] [-k kernel_image]*\n",
@@ -89,7 +91,7 @@ int main(int argc, char **argv)
     kernel_symbol* ksymBase = 0;
     size_t ksymCount = 0;
     uint32_t* kcrcBase = 0;
-    kern_img* parsedKernimg = 0;
+    kern_static* parsedKernimg = 0;
     Elf64_Phdr* phdrBase = 0;
     
     std::string* shstrtab_tmp;
@@ -128,7 +130,7 @@ int main(int argc, char **argv)
         vmlinux_targ = vmlinux_dir_made.data();
     }
 
-    parsedKernimg = kern_img::allocate_kern_img(kernimg_targ);
+    parsedKernimg = kernel_block::allocate_kern_img<kern_static>(kernimg_targ);
     SAFE_BAIL(parsedKernimg == 0);
 
     // alloc outfile
@@ -154,7 +156,7 @@ int main(int argc, char **argv)
 
     // write the kernel image itself to the new vmlinux
     kernimgBase = (char*)vmlinux_iter;
-    memcpy(vmlinux_iter, parsedKernimg->get_binbegin(), parsedKernimg->get_kernimg_sz());
+    memcpy(vmlinux_iter, (void*)parsedKernimg->get_binbegin(), parsedKernimg->get_kernimg_sz());
     vmlinux_iter = (void*)((size_t)vmlinux_iter + parsedKernimg->get_kernimg_sz());
     
     // write the new shstrtab to vmlinux

@@ -12,12 +12,11 @@
 #include "spare_vmlinux.h"
 #include <kern_img.h>
 
-class kern_static : protected kern_img
+class kern_static : public kern_img
 {
 public:
     // couple of helpers for finding stuff
     Elf64_Phdr* find_prog(std::string lookupKey);
-    Elf64_Shdr* find_sect(std::string lookupKey);
 
     // have to extend these, they are for every kernel. the ksym
     // dlsym is for getting the kernel symbol location, really
@@ -29,7 +28,6 @@ public:
     // get the index of a kstr in the ksymstr table.
     int findKindInKstr(const char* newString, int* index);
 
-    Elf64_Phdr* find_prog(std::string lookupKey);
     // insertion function to be used, should be the only interface for adding new values
     // void insert_section(std::string sec_name, uint16_t sh_type, uint64_t sh_flags,
     //     uint64_t sh_addr, uint64_t sh_offset, uint64_t sh_size, uint16_t sh_link,
@@ -43,7 +41,8 @@ public:
     int patch_and_write(Elf64_Ehdr* vmlinux_base, Elf64_Shdr* vmlinux_cur, Elf64_Phdr* phBase, size_t offset);
 
 private:
-    std::map<std::string, size_t> offset_table;
+    using kern_img::kern_img;
+    int populate_kcrc_map();
 
     // grabbing global variables for use
     int grab_primary_switch();
