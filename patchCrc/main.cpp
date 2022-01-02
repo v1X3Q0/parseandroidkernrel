@@ -37,7 +37,7 @@ int main(int argc, char **argv)
     kernel_symbol* ksymBase = 0;
     size_t ksymCount = 0;
     uint32_t* kcrcBase = 0;
-    kern_img* parsedKernimg = 0;
+    kern_static* parsedKernimg = 0;
 
     FILE* drvoutTmp = 0;
     int crcargBase = 0;
@@ -98,24 +98,34 @@ int main(int argc, char **argv)
     {
         parsedKernimg = kernel_block::allocate_kern_img<kern_static>(kernimg_targ);
         SAFE_FAIL(parsedKernimg == 0, "kernel image  was invalid\n");
-        ksymBase = parsedKernimg->get_ksymtab();
-        ksymCount = parsedKernimg->get_ksyms_count();
-        kcrcBase = parsedKernimg->get_kcrctab();
     }
 
-    SAFE_FAIL(vendorimg_path == 0, "need a provided vendor image path\n");
-    SAFE_FAIL(get_libmodules(vendorimg_path, &vendorimg_names) == -1, "provided image path invalid\n");
-    symvers_modules(&vendorimg_names, &vendor_crcs);
+    // if we have a vendor image path, then we should get all the vendor drivers
+    // and rip their symbols out to use for our kcrc
+    if (vendorimg_path != 0)
+    {
+        SAFE_FAIL(vendorimg_path == 0, "need a provided vendor image path\n");
+        SAFE_FAIL(get_libmodules(vendorimg_path, &vendorimg_names) == -1, "provided image path invalid\n");
+        symvers_modules(&vendorimg_names, &vendor_crcs);
+    }
 
     SAFE_BAIL(newDriver == 0);
     SAFE_BAIL(block_grab(newDriver, (void**)&drverBase, &drvSize) == -1);
 
     populateVers(drverBase, &versMap);
     
+    // assuming that we got a vendor image, then we should use it to fill out our kcrc's
     if ((ksymBase == 0) || (ksymBase->name == 0))
     {
         populateCrcMap(&versMap, &vendor_crcs);
     }
+    // else if we have a parsed kernel image, use the sorted ksymtab_strings table to
+    // perform our patches.
+    else if (parsedKernimg != 0)
+    {
+        populateKcrctab_ki(&versMap, parsedKernimg);
+    }
+    // else, the other way was to iterate a populated table and fill. This however doesn't work
     else
     {
         populateCrcKsymtab(&versMap, ksymBase, ksymCount, kcrcBase);

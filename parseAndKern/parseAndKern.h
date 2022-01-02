@@ -33,12 +33,14 @@ public:
     //     uint64_t sh_addr, uint64_t sh_offset, uint64_t sh_size, uint16_t sh_link,
     //     uint16_t sh_info, uint64_t sh_addralign, uint64_t sh_entsize);
     void insert_section(std::string sec_name, uint64_t sh_offset, uint64_t sh_size);
-    int check_sect(std::string sect_name, Elf64_Shdr** sect_out);
+
     int gen_vmlinux_sz(size_t* outSz, size_t headOffset);
     int gen_shstrtab(std::string** out_shstrtab, uint16_t* numSects, uint16_t* shstrtab_index);
 
     // patch the out binary, section table base at vmlinux_cur and ph base at phBase
     int patch_and_write(Elf64_Ehdr* vmlinux_base, Elf64_Shdr* vmlinux_cur, Elf64_Phdr* phBase, size_t offset);
+
+    int kcrc_index(std::string symbol, uint32_t* kcrc);
 
 private:
     using kern_img::kern_img;
@@ -55,12 +57,13 @@ private:
     int base_modverparam();
     int base_ksymtab_strings();
     int base_kcrctab();
-    int base_ksymtab();
     int base_modver();
     int base_ex_table();
-    int base_inits();
     int base_new_shstrtab();
     int base_init_data();
+
+    std::vector<const char*> kstrtab_sorted;
+    std::vector<const char*> kstrtab_gpl_sorted;
 
     std::vector<std::pair<std::string, Elf64_Phdr*>> prog_list;
 };

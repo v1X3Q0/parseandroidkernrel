@@ -127,6 +127,20 @@ fail:
     return result;
 }
 
+int populateKcrctab_ki(std::map<std::string, unsigned long>* crcPairs, kern_static* parsedKI)
+{
+    int result = -1;
+
+    for (auto i = crcPairs->begin(); i != crcPairs->end(); i++)
+    {
+        SAFE_BAIL(parsedKI->kcrc_index(i->first, (uint32_t*)&i->second) == -1);
+    }
+
+    result = 0;
+fail:
+    return result;
+}
+
 int populateCrcMap(std::map<std::string, unsigned long>* crcPairs, std::map<std::string, unsigned long>* crcNet)
 {
     uint32_t dbgInt = 0;
