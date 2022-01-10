@@ -6,6 +6,7 @@
 #include <hdeA64.h>
 #include <ibeSet.h>
 #include <localUtil.h>
+#include <kernel_block.h>
 
 #include <krw_util.h>
 
@@ -338,7 +339,7 @@ int kern_static::base_modverparam()
     getB.addNewInst(cOperand::createASI<saveVar_t, saveVar_t, saveVar_t>(getB.checkOperand(2), getB.checkOperand(2), getB.checkOperand(5)));
     getB.addNewInst(cOperand::createLI<saveVar_t, size_t, size_t, size_t>(getB.checkOperand(6), X31,  0x39, 0x3));
 
-    SAFE_BAIL(kernel_search(&getB, KSYM_V(start_kernel), PAGE_SIZE, &modverAddr) == -1);
+    SAFE_BAIL(kernel_search(&getB, KSYM_V(start_kernel), PAGE_SIZE, (void**)&modverAddr) == -1);
 
     getB.getVar(3, &modverOff);
     modvertmp = modverOff + ((size_t)(modverAddr + sizeof(uint32_t)) & ~PAGE_MASK);
@@ -374,7 +375,7 @@ int kern_static::base_init_data()
         getB.checkOperand(0), getB.checkOperand(1)));
     getB.addNewInst(cOperand::createLDRB<saveVar_t, saveVar_t, saveVar_t>(
         getB.checkOperand(2), getB.checkOperand(0), getB.checkOperand(4)));
-    SAFE_BAIL(kernel_search(&getB, KSYM_V(start_kernel), PAGE_SIZE, &init_data_off) == -1);
+    SAFE_BAIL(kernel_search(&getB, KSYM_V(start_kernel), PAGE_SIZE, (void**)&init_data_off) == -1);
 
     getB.getVar(0, &init_data_l);
     getB.getVar(4, &init_data_final);

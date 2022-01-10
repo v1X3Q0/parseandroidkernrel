@@ -20,7 +20,7 @@ int kern_static::grab_primary_switch()
     size_t primSwitchOff = 0;
 
     getB.addNewInst(cOperand::createB<saveVar_t>(getB.checkOperand(0)));
-    SAFE_BAIL(kernel_search(&getB, KSYM_V(_sinittext), PAGE_SIZE, &primSwitchBAddr) == -1);
+    SAFE_BAIL(kernel_search(&getB, KSYM_V(_sinittext), PAGE_SIZE, (void**)&primSwitchBAddr) == -1);
 
     getB.getVar(0, &primSwitchOff);
     KSYM_V(__primary_switch) = primSwitchOff + (size_t)primSwitchBAddr;
@@ -57,7 +57,7 @@ int kern_static::grab_primary_switched()
 
     getB.addNewInst(new cOperand(ARM64_ISB_OP));
     getB.addNewInst(cOperand::createBL<saveVar_t>(getB.checkOperand(0)));
-    SAFE_BAIL(kernel_search(&getB, KSYM_V(__primary_switch), PAGE_SIZE, &create_page_tablesAddr) == -1);
+    SAFE_BAIL(kernel_search(&getB, KSYM_V(__primary_switch), PAGE_SIZE, (void**)&create_page_tablesAddr) == -1);
 
     getB.getVar(0, &create_page_tablesOff);
     KSYM_V(__create_page_tables) = create_page_tablesOff + (size_t)create_page_tablesAddr + sizeof(uint32_t);
@@ -65,7 +65,7 @@ int kern_static::grab_primary_switched()
     getB.clearInternals();
     getB.addNewInst(cOperand::createADRP<saveVar_t, saveVar_t>(getB.checkOperand(0), getB.checkOperand(1)));
     getB.addNewInst(cOperand::createASI<size_t, saveVar_t, size_t>(SP, getB.checkOperand(0), 4));
-    SAFE_BAIL(kernel_search(&getB, KSYM_V(__create_page_tables), PAGE_SIZE, &__primary_switched) == -1);
+    SAFE_BAIL(kernel_search(&getB, KSYM_V(__create_page_tables), PAGE_SIZE, (void**)&__primary_switched) == -1);
     KSYM_V(__primary_switched) = (size_t)__primary_switched;
 
     result = 0;
@@ -82,7 +82,7 @@ int kern_static::grab_start_kernel_g()
     uint32_t* start_kernel;
 
     getB.addNewInst(cOperand::createB<saveVar_t>(getB.checkOperand(0)));
-    SAFE_BAIL(kernel_search(&getB, KSYM_V(__primary_switched), PAGE_SIZE, &start_kernel) == -1);
+    SAFE_BAIL(kernel_search(&getB, KSYM_V(__primary_switched), PAGE_SIZE, (void**)&start_kernel) == -1);
 
     getB.getVar(0, &start_kernelOff);
     KSYM_V(start_kernel) = start_kernelOff + (size_t)start_kernel;

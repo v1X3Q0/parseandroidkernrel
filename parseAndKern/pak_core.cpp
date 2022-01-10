@@ -139,3 +139,29 @@ finish:
 fail:
     return result;
 }
+
+Elf64_Shdr* kern_static::find_sect(std::string lookupKey)
+{
+    return vector_pair_key_find<std::string, Elf64_Shdr*>(&sect_list, lookupKey);
+}
+
+int kern_static::check_sect(std::string sect_name, Elf64_Shdr** sect_out)
+{
+    int result = -1;
+    int index = 0;
+
+    index = vector_pair_ind<std::string, Elf64_Shdr*>(&sect_list, sect_name);
+    SAFE_BAIL(index == -1);
+    // SAFE_BAIL(sect_list.find(sect_name) == sect_list.end());
+
+    if (sect_out != 0)
+    {
+        // *sect_out = &sect_list[sect_name];
+        *sect_out = sect_list[index].second;
+    }
+
+    result = 0;
+fail:
+    return result;
+}
+

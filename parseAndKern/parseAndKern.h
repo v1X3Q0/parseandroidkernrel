@@ -17,12 +17,14 @@ class kern_static : public kern_img
 public:
     // couple of helpers for finding stuff
     Elf64_Phdr* find_prog(std::string lookupKey);
+    Elf64_Shdr* find_sect(std::string lookupKey);
+    int check_sect(std::string sect_name, Elf64_Shdr** sect_out);
 
     // have to extend these, they are for every kernel. the ksym
     // dlsym is for getting the kernel symbol location, really
     // extending that is just in case a symbol can't or shouldn't
     // be cached, for instance if a symbol table has been found.
-    int ksym_dlsym(const char* newString, size_t* out_address);
+    int kdlsym(const char* newString, size_t* out_address);
     int parseAndGetGlobals();
     
     // get the index of a kstr in the ksymstr table.
