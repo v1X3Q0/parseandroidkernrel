@@ -1,0 +1,51 @@
+{
+    "kernel_family": "android",
+    #include "elf_helpers.json",
+    "sections": {
+        ".head.text": {
+            "sh_addralign": 4,
+            "sh_flags": ${"SHF_EXECINSTR"} | ${"SHF_WRITE"},
+            "p_flags": ${"PF_X"} | ${"PF_W"}
+        },
+        ".text": {
+            "sh_addralign": 2048,
+            "sh_flags": ${"SHF_EXECINSTR"} | ${"SHF_WRITE"},
+            "p_flags": ${"PF_X"} | ${"PF_W"}
+        },
+        "__ksymtab": {
+            "sh_addralign": 8,
+            "sh_flags": ${"SHF_WRITE"},
+            "p_flags": ${"PF_W"}
+        },
+        "__kcrctab": {
+            "sh_addralign": 1,
+            "sh_flags": ${"SHF_WRITE"},
+            "p_flags": ${"PF_W"}
+        },
+        "__ksymtab_strings": {
+            "sh_addralign": 1,
+            "sh_flags": ${"SHF_WRITE"},
+            "p_flags": ${"PF_W"}
+        },
+        "__param": {
+            "sh_addralign": 8,
+            "sh_flags": ${"SHF_WRITE"},
+            "p_flags": ${"PF_W"}
+        },
+        "__modver": {
+            "sh_addralign": 8,
+            "sh_flags": ${"SHF_WRITE"},
+            "p_flags": ${"PF_W"}
+        },
+        "__ex_table": {
+            "sh_addralign": 8,
+            "sh_flags": ${"SHF_WRITE"},
+            "p_flags": ${"PF_W"}
+        },
+        ".init.text": {
+            "sh_addralign": 8,
+            "sh_flags" : ${"SHF_EXECINSTR"} | ${"SHF_WRITE"},
+            "p_flags": ${"PF_X"} | ${"PF_W"}
+        }
+    }
+}
