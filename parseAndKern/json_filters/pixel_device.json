@@ -1,0 +1,19 @@
+{
+    "device": "pixel",
+    "section_override": {
+        "__modver": {
+            "base_modverparam": {
+                "versions": [
+                    "pixel3a"
+                ]
+            }
+        },
+        "__param": {
+            "base_modverparam": {
+                "versions": [
+                    "pixel3a"
+                ]
+            }
+        }
+    }
+}

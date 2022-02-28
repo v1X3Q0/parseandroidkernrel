@@ -17,7 +17,7 @@
 
 int usage(const char* name)
 {
-    fprintf(stderr, "Usage: %s [-v vmlinux] [-k kernel_image]*\n",
+    fprintf(stderr, "Usage: %s [-v vmlinux] [-k kernel_image] [-m bitness]\n",
         name);
     exit(EXIT_FAILURE);
 }
@@ -93,6 +93,8 @@ int main(int argc, char **argv)
     uint32_t* kcrcBase = 0;
     kern_static* parsedKernimg = 0;
     Elf64_Phdr* phdrBase = 0;
+
+    size_t bitness_local = 64;
     
     std::string* shstrtab_tmp;
     void* vmlinux_iter = 0;
@@ -111,12 +113,19 @@ int main(int argc, char **argv)
         case 'k':
             kernimg_targ = optarg;
             break;
+        case 'm':
+            bitness_local = atoi(optarg);
         default: /* '?' */
             usage(argv[0]);
         }
     }
 
     if (kernimg_targ == 0)
+    {
+        usage(argv[0]);
+    }
+
+    if ((bitness_local != 64) && (bitness_local != 32))
     {
         usage(argv[0]);
     }

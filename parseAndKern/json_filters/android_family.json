@@ -5,12 +5,14 @@
         ".head.text": {
             "sh_addralign": 4,
             "sh_flags": ${"SHF_EXECINSTR"} | ${"SHF_WRITE"},
-            "p_flags": ${"PF_X"} | ${"PF_W"}
+            "p_flags": ${"PF_X"} | ${"PF_W"},
+            "location": "base_inits"
         },
         ".text": {
             "sh_addralign": 2048,
             "sh_flags": ${"SHF_EXECINSTR"} | ${"SHF_WRITE"},
-            "p_flags": ${"PF_X"} | ${"PF_W"}
+            "p_flags": ${"PF_X"} | ${"PF_W"},
+            "location": "base_inits"
         },
         "__ksymtab": {
             "sh_addralign": 8,
@@ -45,7 +47,14 @@
         ".init.text": {
             "sh_addralign": 8,
             "sh_flags" : ${"SHF_EXECINSTR"} | ${"SHF_WRITE"},
-            "p_flags": ${"PF_X"} | ${"PF_W"}
+            "p_flags": ${"PF_X"} | ${"PF_W"},
+            "location": "base_inits"
         }
+    },
+    "variables": {
+
+    },
+    "heuristics": {
+        ""
     }
 }

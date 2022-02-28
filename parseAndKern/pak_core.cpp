@@ -7,6 +7,7 @@
 #include <hdeA64.h>
 #include <ibeSet.h>
 #include <localUtil.h>
+#include <localUtil_cpp.h>
 #include <kern_img.h>
 #include <kernel_block.h>
 

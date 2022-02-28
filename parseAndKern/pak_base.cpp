@@ -13,70 +13,30 @@
 #include "spare_vmlinux.h"
 #include "parseAndKern.h"
 
-void kern_static::insert_section(std::string sec_name, uint64_t sh_offset, uint64_t sh_size)
+void kern_static::insert_section(std::string sec_name, size_b sh_offset,
+    size_b sh_size)
 {
-    Elf64_Shdr* newShdr = 0;
-    Elf64_Phdr* newPhdr = 0;
-    Elf64_Word p_type = 0;
-    Elf64_Xword p_align = 0;
-    Elf64_Word p_flags = 0;
+    Elf_Shdr* newShdr = 0;
+    Elf_Phdr* newPhdr = 0;
+    Elf_Word p_type = 0;
+    Elf_Xword p_align = 0;
+    Elf_Word p_flags = 0;
 
     uint16_t sh_type = SHT_PROGBITS;
-    uint64_t sh_flags = 0;
-    uint64_t sh_addr = sh_offset;
+    size_b sh_flags = 0;
+    size_b sh_addr = sh_offset;
     // uint64_t sh_offset = 0;
     // uint64_t sh_size = 0;
     uint16_t sh_link = 0;
     uint16_t sh_info = 0;
-    uint64_t sh_addralign = 0;
-    uint64_t sh_entsize = 0;
-
-    if (sec_name == ".head.text")
-    {
-        sh_addralign = sizeof(int);
-    }
-    else if (sec_name == ".text")
-    {
-        sh_addralign = 2048;
-    }
-    else if (sec_name == "__ksymtab")
-    {
-        sh_addralign = 8;
-    }
-    else if (sec_name == "__kcrctab")
-    {
-        sh_addralign = 1;
-    }
-    else if (sec_name == "__ksymtab_strings")
-    {
-        sh_addralign = 1;
-    }
-    else if (sec_name == "__param")
-    {
-        sh_addralign = 8;
-    }
-    else if (sec_name == "__modver")
-    {
-        sh_addralign = 8;
-    }
-    else if (sec_name == "__ex_table")
-    {
-        sh_addralign = 8;
-    }
-    else if (sec_name == ".init.text")
-    {
-        sh_addralign = 8;
-    }
+    size_b sh_addralign = 0;
+    size_b sh_entsize = 0;
     
     if (
-        (sec_name == ".symtab") ||
-        (sec_name == ".strtab") ||
-        (sec_name == ".shstrtab")
+        (sec_name != ".symtab") &&
+        (sec_name != ".strtab") &&
+        (sec_name != ".shstrtab")
         )
-    {
-
-    }
-    else
     {
         if (live_kernel == false)
         {
@@ -89,19 +49,9 @@ void kern_static::insert_section(std::string sec_name, uint64_t sh_offset, uint6
         sh_flags = SHF_ALLOC;
         p_flags = PF_R;
         // found a text, add executable flag
-        if (sec_name.find("text") != std::string::npos)
-        {
-            sh_flags |= SHF_EXECINSTR | SHF_WRITE;
-            p_flags |= PF_X | PF_W;
-        }
-        else
-        {
-            sh_flags |= SHF_WRITE;
-            p_flags |= PF_W;
-        }
     }
 
-    newShdr = new Elf64_Shdr{
+    newShdr = new Elf_Shdr{
         0,
         sh_type,
         sh_flags,
@@ -118,7 +68,7 @@ void kern_static::insert_section(std::string sec_name, uint64_t sh_offset, uint6
 
     if (p_type == PT_LOAD)
     {
-        newPhdr = new Elf64_Phdr{
+        newPhdr = new Elf_Phdr{
             p_type,
             p_flags,
             sh_offset,

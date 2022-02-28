@@ -14,6 +14,6 @@ int main()
     char * jsonstring = (char*)malloc(filesz);
     fread(jsonstring, 1, filesz, file);
     fclose(file);
-    json_object * jobj = json_tokener_parse(jsonstring);
+    json_object* jobj = json_tokener_parse(jsonstring);
     return 0;
 }
