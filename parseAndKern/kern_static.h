@@ -5,6 +5,7 @@
 #include <vector>
 #include <string>
 #include <elf.h>
+#include <string.h>
 
 #include <localUtil.h>
 #include <ibeSet.h>
@@ -12,7 +13,8 @@
 #include "spare_vmlinux.h"
 #include <kern_img.h>
 
-template <typename size_b, typename Elf_Ehdr, typename Elf_Shdr, typename Elf_Phdr>
+template <typename size_b, typename Elf_Ehdr, typename Elf_Shdr,
+    typename Elf_Phdr, typename Elf_Xword, typename Elf_Word>
 class kern_static : public kern_img
 {
 public:
@@ -37,11 +39,50 @@ public:
     //     uint16_t sh_info, uint64_t sh_addralign, uint64_t sh_entsize);
     void insert_section(std::string sec_name, uint64_t sh_offset, uint64_t sh_size);
 
-    int gen_vmlinux_sz(size_t* outSz, size_t headOffset);
+    // int gen_vmlinux_sz(size_t* outSz, size_t headOffset);
     int gen_shstrtab(std::string** out_shstrtab, uint16_t* numSects, uint16_t* shstrtab_index);
+
+    int gen_vmlinux_sz(size_t* outSz, size_t headOffset)
+    {
+        size_t szTemp = 0;
+        std::string* shstrtab_tmp;
+
+        // we are gonna consider that the header size SHOULD just be a page, however
+        // under the condition that maybe we got a dummy thicc header, we allow it
+        // to be passed in.
+        szTemp += headOffset;
+
+        // we are using the whole parsed kernel image as input, so add that.
+        szTemp += kern_sz;
+        
+        // generate shstrtab
+        gen_shstrtab(&shstrtab_tmp, NULL, NULL);
+
+        // adding the shstrtab to the image whole
+        szTemp += shstrtab_tmp->size();
+
+        // adding the section list to the array, plus 1 for the null section
+        szTemp += ((sect_list.size() + 1) * sizeof(Elf_Shdr));
+
+        *outSz = szTemp;
+        return 0;
+    }
 
     void elfConstruction()
     {
+        int result = -1;
+        Elf64_Ehdr* vmlinuxBase = 0;
+        char *kernimgBase = 0;
+        size_t vmlinux_sz;
+        std::string vmlinux_dir_made;
+
+        kernel_symbol* ksymBase = 0;
+        kern_static* parsedKernimg = 0;
+        Elf_Phdr* phdrBase = 0;
+        
+        std::string* shstrtab_tmp;
+        void* vmlinux_iter = 0;
+
         // alloc outfile
         parsedKernimg->gen_vmlinux_sz(&vmlinux_sz, PAGE_SIZE);
 
@@ -77,10 +118,6 @@ public:
         // the program header and the elf header
         vmlinuxBase->e_shoff = ((size_t)vmlinux_iter - (size_t)vmlinuxBase);
         parsedKernimg->patch_and_write(vmlinuxBase, (Elf_Shdr*)vmlinux_iter, phdrBase, (size_t)kernimgBase - (size_t)vmlinuxBase);
-
-        out_vmlinux = fopen(vmlinux_targ, "w");
-        SAFE_BAIL(out_vmlinux == 0);
-        fwrite(vmlinuxBase, 1, vmlinux_sz, out_vmlinux);
     }
 
     void elfHeadConstruction(Elf_Ehdr* elfHead)
@@ -163,6 +200,76 @@ public:
 
         result = 0;
         return result;
+    }
+
+    void insert_section(std::string sec_name, size_b sh_offset,
+        size_b sh_size)
+    {
+        Elf_Shdr* newShdr = 0;
+        Elf_Phdr* newPhdr = 0;
+        Elf_Word p_type = 0;
+        Elf_Xword p_align = 0;
+        Elf_Word p_flags = 0;
+
+        uint16_t sh_type = SHT_PROGBITS;
+        size_b sh_flags = 0;
+        size_b sh_addr = sh_offset;
+        // uint64_t sh_offset = 0;
+        // uint64_t sh_size = 0;
+        uint16_t sh_link = 0;
+        uint16_t sh_info = 0;
+        size_b sh_addralign = 0;
+        size_b sh_entsize = 0;
+        
+        if (
+            (sec_name != ".symtab") &&
+            (sec_name != ".strtab") &&
+            (sec_name != ".shstrtab")
+            )
+        {
+            if (live_kernel == false)
+            {
+                sh_addr = R_KA(RESOLVE_REL(sh_addr));
+            }
+            sh_offset = RESOLVE_REL(sh_offset);
+            p_type = PT_LOAD;
+            p_align = 0x10000;
+
+            sh_flags = SHF_ALLOC;
+            p_flags = PF_R;
+            // found a text, add executable flag
+        }
+
+        newShdr = new Elf_Shdr{
+            0,
+            sh_type,
+            sh_flags,
+            sh_addr,
+            sh_offset,
+            sh_size,
+            sh_link,
+            sh_info,
+            sh_addralign,
+            sh_entsize
+            };
+
+        sect_list.push_back({sec_name, newShdr});
+
+        if (p_type == PT_LOAD)
+        {
+            newPhdr = new Elf_Phdr{
+                p_type,
+                p_flags,
+                sh_offset,
+                sh_addr,
+                sh_addr,
+                sh_size,
+                sh_size,
+                p_align
+            };
+
+            prog_list.push_back({sec_name, newPhdr});
+        }
     }
 
     int kcrc_index(std::string symbol, uint32_t* kcrc);
