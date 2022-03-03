@@ -202,76 +202,6 @@ public:
         return result;
     }
 
-    void insert_section(std::string sec_name, size_b sh_offset,
-        size_b sh_size)
-    {
-        Elf_Shdr* newShdr = 0;
-        Elf_Phdr* newPhdr = 0;
-        Elf_Word p_type = 0;
-        Elf_Xword p_align = 0;
-        Elf_Word p_flags = 0;
-
-        uint16_t sh_type = SHT_PROGBITS;
-        size_b sh_flags = 0;
-        size_b sh_addr = sh_offset;
-        // uint64_t sh_offset = 0;
-        // uint64_t sh_size = 0;
-        uint16_t sh_link = 0;
-        uint16_t sh_info = 0;
-        size_b sh_addralign = 0;
-        size_b sh_entsize = 0;
-        
-        if (
-            (sec_name != ".symtab") &&
-            (sec_name != ".strtab") &&
-            (sec_name != ".shstrtab")
-            )
-        {
-            if (live_kernel == false)
-            {
-                sh_addr = R_KA(RESOLVE_REL(sh_addr));
-            }
-            sh_offset = RESOLVE_REL(sh_offset);
-            p_type = PT_LOAD;
-            p_align = 0x10000;
-
-            sh_flags = SHF_ALLOC;
-            p_flags = PF_R;
-            // found a text, add executable flag
-        }
-
-        newShdr = new Elf_Shdr{
-            0,
-            sh_type,
-            sh_flags,
-            sh_addr,
-            sh_offset,
-            sh_size,
-            sh_link,
-            sh_info,
-            sh_addralign,
-            sh_entsize
-            };
-
-        sect_list.push_back({sec_name, newShdr});
-
-        if (p_type == PT_LOAD)
-        {
-            newPhdr = new Elf_Phdr{
-                p_type,
-                p_flags,
-                sh_offset,
-                sh_addr,
-                sh_addr,
-                sh_size,
-                sh_size,
-                p_align
-            };
-
-            prog_list.push_back({sec_name, newPhdr});
-        }
-    }
-
     int kcrc_index(std::string symbol, uint32_t* kcrc);
 
 private:
@@ -294,10 +224,13 @@ private:
     int base_new_shstrtab();
     int base_init_data();
 
+    std::vector<std::pair<std::string, Elf_Shdr*>> sect_list;
     std::vector<const char*> kstrtab_sorted;
     std::vector<const char*> kstrtab_gpl_sorted;
 
     std::vector<std::pair<std::string, Elf_Phdr*>> prog_list;
 };
+
+kern_img* allocate_static_kernel(const char* kern_filename, uint32_t bitness);
 
 #endif

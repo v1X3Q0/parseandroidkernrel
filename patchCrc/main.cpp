@@ -3,13 +3,19 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <hdeA64.h>
 #include <ibeSet.h>
 #include <localUtil.h>
-#include <parseAndKern.h>
+
 #include "patchCrc.h"
 #include "iterate_dir.h"
 #include <kernel_block.h>
+#include <kern_static.h>
+
+#ifdef LIVE_KERNEL
+#include <hdeA64.h>
+#else
+#include <capstone/capstone.h>
+#endif
 
 int usage(const char* name)
 {
@@ -37,14 +43,15 @@ int main(int argc, char **argv)
     kernel_symbol* ksymBase = 0;
     size_t ksymCount = 0;
     uint32_t* kcrcBase = 0;
-    kern_static* parsedKernimg = 0;
+    kern_img* parsedKernimg = 0;
+    uint32_t bitness_local = sizeof(size_t) * 8;
 
     FILE* drvoutTmp = 0;
     int crcargBase = 0;
 
     int opt = 0;
     
-    while ((opt = getopt(argc, argv, "v:k:m:i:")) != -1)
+    while ((opt = getopt(argc, argv, "v:k:n:m:i:")) != -1)
     {
         switch (opt)
         {
@@ -54,11 +61,14 @@ int main(int argc, char **argv)
         case 'k':
             kernimg_targ = optarg;
             break;
-        case 'm':
+        case 'n':
             newDriver = optarg;
             break;
         case 'i':
             vendorimg_path = optarg;
+            break;
+        case 'm':
+            bitness_local = atoi(optarg);
             break;
         default: /* '?' */
             usage(argv[0]);
@@ -96,7 +106,7 @@ int main(int argc, char **argv)
     }
     else if (kernimg_targ != 0)
     {
-        parsedKernimg = kernel_block::allocate_kern_img<kern_static>(kernimg_targ);
+        parsedKernimg = allocate_static_kernel(kernimg_targ, bitness_local);
         SAFE_FAIL(parsedKernimg == 0, "kernel image  was invalid\n");
     }
 

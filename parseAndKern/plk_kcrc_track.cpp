@@ -3,7 +3,16 @@
 #include <sv_gpl.h>
 #include "kern_static.h"
 
-int kern_static::populate_kcrc_map()
+bool strcmp_bool(const char* first, const char* second)
+{
+    if (strcmp(first, second) == 0)
+        return true;
+    return false;
+}
+
+template <typename size_b, typename Elf_Ehdr, typename Elf_Shdr,
+    typename Elf_Phdr, typename Elf_Xword, typename Elf_Word>
+int kern_static<size_b, Elf_Ehdr, Elf_Shdr, Elf_Phdr, Elf_Xword, Elf_Word>::populate_kcrc_map()
 {
     int result = -1;
     Elf64_Shdr* kstrtab_sec = 0;
@@ -39,10 +48,12 @@ fail:
     return result;
 }
 
-int kern_static::kcrc_index(std::string symbol, uint32_t* kcrc)
+template <typename size_b, typename Elf_Ehdr, typename Elf_Shdr,
+    typename Elf_Phdr, typename Elf_Xword, typename Elf_Word>
+int kern_static<size_b, Elf_Ehdr, Elf_Shdr, Elf_Phdr, Elf_Xword, Elf_Word>::kcrc_index(std::string symbol, uint32_t* kcrc)
 {
     int result = -1;
-    Elf64_Shdr* kcrctab_sec = 0;
+    Elf_Shdr* kcrctab_sec = 0;
     uint32_t* kcrctab_base = 0;
     SAFE_BAIL(check_sect("__kcrctab", &kcrctab_sec) == -1);
 

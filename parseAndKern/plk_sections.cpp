@@ -18,7 +18,9 @@
 #include <capstone/capstone.h>
 #endif
 
-int kern_static::base_new_shstrtab()
+template <typename size_b, typename Elf_Ehdr, typename Elf_Shdr,
+    typename Elf_Phdr, typename Elf_Xword, typename Elf_Word>
+int kern_static<size_b, Elf_Ehdr, Elf_Shdr, Elf_Phdr, Elf_Xword, Elf_Word>::base_new_shstrtab()
 {
     char strtabRef[] = ".shstrtab";
     std::string* shtstrtab_tmp = 0;

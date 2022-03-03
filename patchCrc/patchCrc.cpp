@@ -8,7 +8,7 @@
 #include <string>
 
 #include <localUtil.h>
-#include <parseAndKern.h>
+#include <kern_static.h>
 
 int findSec(char *elfBase, const char* sectionName, Elf64_Shdr** secHeadFound)
 {
@@ -127,7 +127,7 @@ fail:
     return result;
 }
 
-int populateKcrctab_ki(std::map<std::string, unsigned long>* crcPairs, kern_static* parsedKI)
+int populateKcrctab_ki(std::map<std::string, unsigned long>* crcPairs, kern_img* parsedKI)
 {
     int result = -1;
 

@@ -19,55 +19,58 @@
 #include <capstone/capstone.h>
 #endif
 
-bool cmp_Shdr(std::pair<std::string, Elf64_Shdr*>& a,
-         std::pair<std::string, Elf64_Shdr*>& b)
+template <typename Elf_Shdr>
+bool cmp_Shdr(std::pair<std::string, Elf_Shdr*>& a,
+         std::pair<std::string, Elf_Shdr*>& b)
 {
     return a.second->sh_offset < b.second->sh_offset;
 }
 
-bool cmp_Phdr(std::pair<std::string, Elf64_Phdr*>& a,
-         std::pair<std::string, Elf64_Phdr*>& b)
+template <typename Elf_Phdr>
+bool cmp_Phdr(std::pair<std::string, Elf_Phdr*>& a,
+         std::pair<std::string, Elf_Phdr*>& b)
 {
     return a.second->p_offset < b.second->p_offset;
 }
 
-bool strcmp_bool(const char* first, const char* second)
-{
-    if (strcmp(first, second) == 0)
-        return true;
-    return false;
-}
-
-int kern_static::parseAndGetGlobals()
+template <typename size_b, typename Elf_Ehdr, typename Elf_Shdr,
+    typename Elf_Phdr, typename Elf_Xword, typename Elf_Word>
+int kern_static<size_b, Elf_Ehdr, Elf_Shdr, Elf_Phdr, Elf_Xword, Elf_Word>::parseAndGetGlobals()
 {
     int result = -1;
 
     // parse the json and determine which sorters/generators i need to run
 
-    vector_pair_sort<std::string, Elf64_Shdr*>(&sect_list, cmp_Shdr);
-    vector_pair_sort<std::string, Elf64_Phdr*>(&prog_list, cmp_Phdr);
+    vector_pair_sort<std::string, Elf_Shdr*>(&sect_list, cmp_Shdr<Elf_Shdr>);
+    vector_pair_sort<std::string, Elf_Phdr*>(&prog_list, cmp_Phdr<Elf_Phdr>);
 
     result = 0;
 fail:
     return result;
 }
 
-Elf64_Phdr* kern_static::find_prog(std::string lookupKey)
+template <typename size_b, typename Elf_Ehdr, typename Elf_Shdr,
+    typename Elf_Phdr, typename Elf_Xword, typename Elf_Word>
+Elf_Phdr* kern_static<size_b, Elf_Ehdr, Elf_Shdr, Elf_Phdr, Elf_Xword, Elf_Word>::find_prog(std::string lookupKey)
 {
     return vector_pair_key_find<std::string, Elf64_Phdr*>(&prog_list, lookupKey);
 }
 
-Elf64_Shdr* kern_static::find_sect(std::string lookupKey)
+template <typename size_b, typename Elf_Ehdr, typename Elf_Shdr,
+    typename Elf_Phdr, typename Elf_Xword, typename Elf_Word>
+Elf_Shdr* kern_static<size_b, Elf_Ehdr, Elf_Shdr, Elf_Phdr, Elf_Xword, Elf_Word>::find_sect(std::string lookupKey)
 {
-    return vector_pair_key_find<std::string, Elf64_Shdr*>(&sect_list, lookupKey);
+    return vector_pair_key_find<std::string, Elf_Shdr*>(&sect_list, lookupKey);
 }
 
-int kern_static::check_sect(std::string sect_name, Elf64_Shdr** sect_out)
+template <typename size_b, typename Elf_Ehdr, typename Elf_Shdr,
+    typename Elf_Phdr, typename Elf_Xword, typename Elf_Word>
+int kern_static<size_b, Elf_Ehdr, Elf_Shdr, Elf_Phdr, Elf_Xword, Elf_Word>::check_sect(std::string sect_name, Elf_Shdr** sect_out)
 {
     int result = -1;
     int index = 0;
 
-    index = vector_pair_ind<std::string, Elf64_Shdr*>(&sect_list, sect_name);
+    index = vector_pair_ind<std::string, Elf_Shdr*>(&sect_list, sect_name);
     SAFE_BAIL(index == -1);
     // SAFE_BAIL(sect_list.find(sect_name) == sect_list.end());
 
@@ -82,3 +85,17 @@ fail:
     return result;
 }
 
+kern_img* allocate_static_kernel(const char* kern_filename, uint32_t bitness)
+{
+    kern_img* new_stat = 0;
+
+    if (bitness == 32)
+    {
+        new_stat = kernel_block::allocate_kern_img<kern_static<uint32_t, Elf32_Ehdr, Elf32_Shdr, Elf32_Phdr, Elf32_Xword, Elf32_Word>>(kern_filename);
+    }
+    else if (bitness == 64)
+    {
+        new_stat = kernel_block::allocate_kern_img<kern_static<uint64_t, Elf64_Ehdr, Elf64_Shdr, Elf64_Phdr, Elf64_Xword, Elf64_Word>>(kern_filename);
+    }
+    return new_stat;
+}
