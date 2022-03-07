@@ -11,4 +11,5 @@ target_include_directories(ki_to_vmlinux PRIVATE
     ../parseAndKern
     ${ANDROID_TOOL_BASE}/linux/rwDrv/include
     ${ANDROID_TOOL_BASE}/common/kern_img/linux
-    ${ANDROID_TOOL_BASE}/common/kern_img/common)
+    ${ANDROID_TOOL_BASE}/common/kern_img/common
+    /usr/include/json-c)

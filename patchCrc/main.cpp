@@ -43,7 +43,7 @@ int main(int argc, char **argv)
     kernel_symbol* ksymBase = 0;
     size_t ksymCount = 0;
     uint32_t* kcrcBase = 0;
-    kern_img* parsedKernimg = 0;
+    kernel_linux* parsedKernimg = 0;
     uint32_t bitness_local = sizeof(size_t) * 8;
 
     FILE* drvoutTmp = 0;
@@ -106,7 +106,7 @@ int main(int argc, char **argv)
     }
     else if (kernimg_targ != 0)
     {
-        parsedKernimg = allocate_static_kernel(kernimg_targ, bitness_local);
+        allocate_static_kernel(kernimg_targ, bitness_local);
         SAFE_FAIL(parsedKernimg == 0, "kernel image  was invalid\n");
     }
 
@@ -147,7 +147,7 @@ int main(int argc, char **argv)
     fwrite(drverBase, 1, drvSize, drvoutTmp);
     printf("patched file %s\n", newDriver);
 fail:
-    SAFE_DEL(parsedKernimg);
+    // SAFE_DEL(parsedKernimg);
     SAFE_FCLOSE(drvoutTmp);
     SAFE_FREE(drverBase);
     SAFE_FREE(vmlinuxBase);

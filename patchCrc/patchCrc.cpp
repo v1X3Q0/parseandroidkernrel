@@ -127,13 +127,13 @@ fail:
     return result;
 }
 
-int populateKcrctab_ki(std::map<std::string, unsigned long>* crcPairs, kern_img* parsedKI)
+int populateKcrctab_ki(std::map<std::string, unsigned long>* crcPairs, kernel_linux* parsedKI)
 {
     int result = -1;
 
     for (auto i = crcPairs->begin(); i != crcPairs->end(); i++)
     {
-        SAFE_BAIL(parsedKI->kcrc_index(i->first, (uint32_t*)&i->second) == -1);
+        // SAFE_BAIL(parsedKI->kcrc_index(i->first, (uint32_t*)&i->second) == -1);
     }
 
     result = 0;
