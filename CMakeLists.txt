@@ -5,8 +5,6 @@ if(NOT DEFINED ANDROID_TOOL_BASE)
     message(FATAL_ERROR "need ANDROID_TOOL_BASE")
 endif()
 
-add_definitions(-DDYN_DISASM)
-
 # includes
 # include_directories(${ANDROID_TOOL_BASE}/common/hde_armv8 ${ANDROID_TOOL_BASE}/common/local_util ${ANDROID_TOOL_BASE}/common/c_reginst)
 # include_directories(${ANDROID_TOOL_BASE}/common/bgrep_c)
