@@ -3,19 +3,12 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <ibeSet.h>
 #include <localUtil.h>
 
 #include "patchCrc.h"
 #include "iterate_dir.h"
 #include <kernel_block.h>
 #include <kern_static.h>
-
-#ifdef LIVE_KERNEL
-#include <hdeA64.h>
-#else
-#include <capstone/capstone.h>
-#endif
 
 int usage(const char* name)
 {

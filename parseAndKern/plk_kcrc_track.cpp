@@ -1,5 +1,8 @@
 #include <algorithm>
 #include <functional>
+#include <sstream>
+#include <iostream>
+
 #include <sv_gpl.h>
 #include "kern_static.h"
 
@@ -12,7 +15,7 @@ bool strcmp_bool(const char* first, const char* second)
 
 template <typename size_b, typename Elf_Ehdr, typename Elf_Shdr,
     typename Elf_Phdr, typename Elf_Xword, typename Elf_Word>
-int kernel_static<size_b, Elf_Ehdr, Elf_Shdr, Elf_Phdr, Elf_Xword, Elf_Word>::populate_kcrc_map()
+int kern_static<size_b, Elf_Ehdr, Elf_Shdr, Elf_Phdr, Elf_Xword, Elf_Word>::populate_kcrc_map()
 {
     int result = -1;
     Elf64_Shdr* kstrtab_sec = 0;
@@ -47,4 +50,20 @@ int kernel_static<size_b, Elf_Ehdr, Elf_Shdr, Elf_Phdr, Elf_Xword, Elf_Word>::po
 fail:
     return result;
 }
+
+int kernel_linux::parse_gpl()
+{
+    char linetmp[0x100];
+    std::istringstream linestream;
+    std::string stringtmp;
+
+    while(std::cin.getline(linetmp, sizeof(linetmp), '\n'))
+    {
+        stringtmp = std::string(linetmp);
+        linestream = std::istringstream(stringtmp);
+        
+    }
+    
+}
+
 

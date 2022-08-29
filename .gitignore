@@ -6,7 +6,7 @@
 build
 out
 build-out
-
+.vscode
 
 # Node artifact files
 node_modules/

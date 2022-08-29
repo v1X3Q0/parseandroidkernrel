@@ -5,6 +5,35 @@ if(NOT DEFINED ANDROID_TOOL_BASE)
     message(FATAL_ERROR "need ANDROID_TOOL_BASE")
 endif()
 
+if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+    set(MY_HOST_COMPILER linux)
+endif()
+
+if (NOT DEFINED ARCH)
+    set(ARCH arm64)
+endif()
+
+if (NOT DEFINED ANDROID_DEVICE)
+    set(ANDROID_DEVICE PIXEL3A)
+    message(WARNING "No ANDROID_DEVICE specified, defaulting to value ${ANDROID_DEVICE}")
+endif()
+if (NOT DEFINED ANDROID_OS)
+    set(ANDROID_OS 11)
+    message(WARNING "No ANDROID_OS specified, defaulting to value ${ANDROID_OS}")
+endif()
+
+set(NOLIVE 1)
+
+# ===========================================
+# ============ toolchain arch ===============
+# ===========================================
+if (ARCH MATCHES "arm64" OR ARCH MATCHES "arm64e")
+    add_definitions(-DSUPPORT_AARCH64=1)
+# I believe windows does AMD64 and linux does x86_64
+elseif(ARCH MATCHES "AMD64" OR ARCH MATCHES "i386" OR ARCH MATCHES "x86_64")
+    add_definitions(-DSUPPORT_X86_64=1)
+endif()
+
 # includes
 # include_directories(${ANDROID_TOOL_BASE}/common/hde_armv8 ${ANDROID_TOOL_BASE}/common/local_util ${ANDROID_TOOL_BASE}/common/c_reginst)
 # include_directories(${ANDROID_TOOL_BASE}/common/bgrep_c)

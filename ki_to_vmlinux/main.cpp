@@ -7,18 +7,11 @@
 #include <libgen.h>
 #include <linux/limits.h>
 
-#include <ibeSet.h>
 #include <localUtil.h>
 #include <kern_static.h>
 #include <drv_share.h>
 
 #include <kernel_block.h>
-
-#ifdef LIVE_KERNEL
-#include <hdeA64.h>
-#else
-#include <capstone/capstone.h>
-#endif
 
 int usage(const char* name)
 {
