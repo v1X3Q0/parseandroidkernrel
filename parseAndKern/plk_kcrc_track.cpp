@@ -2,6 +2,10 @@
 #include <functional>
 #include <sstream>
 #include <iostream>
+#include <iostream>
+#include <vector>
+#include <string>
+#include <sstream>
 
 #include <sv_gpl.h>
 #include "kern_static.h"
@@ -53,17 +57,25 @@ fail:
 
 int kernel_linux::parse_gpl()
 {
-    char linetmp[0x100];
-    std::istringstream linestream;
+    int result = -1;
+    char linebuffer[0x100];
+    std::stringstream linestream;
+    std::string linetmp;
     std::string stringtmp;
+    int kallsym_index = 0;
+    uint64_t address_parse = 0;
+    std::string symname;
 
-    while(std::cin.getline(linetmp, sizeof(linetmp), '\n'))
+    while(std::cin.getline(linebuffer, sizeof(linebuffer), '\n'))
     {
-        stringtmp = std::string(linetmp);
-        linestream = std::istringstream(stringtmp);
-        
+        linetmp = std::string(linebuffer);
+        linestream = std::stringstream(linetmp);
+        linestream >> stringtmp;
+        address_parse = strtoull((stringtmp.c_str()), NULL, 0x10);
+        linestream >> stringtmp;
+        linestream >> symname;
     }
     
+    result = 0;
+    return result;
 }
-
-

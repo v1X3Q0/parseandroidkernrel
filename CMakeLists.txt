@@ -27,7 +27,7 @@ set(NOLIVE 1)
 # ===========================================
 # ============ toolchain arch ===============
 # ===========================================
-if (ARCH MATCHES "arm64" OR ARCH MATCHES "arm64e")
+if (ARCH MATCHES "arm64" OR ARCH MATCHES "arm64e" OR ARCH MATCHES "aarch64")
     add_definitions(-DSUPPORT_AARCH64=1)
 # I believe windows does AMD64 and linux does x86_64
 elseif(ARCH MATCHES "AMD64" OR ARCH MATCHES "i386" OR ARCH MATCHES "x86_64")
