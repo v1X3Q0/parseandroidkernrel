@@ -5,7 +5,7 @@
 #include <elf.h>
 #include <vector>
 #include <libgen.h>
-#include <linux/limits.h>
+// #include <linux/limits.h>
 
 #include <localUtil.h>
 #include <kern_static.h>
@@ -15,10 +15,12 @@
 
 int usage(const char* name)
 {
-    fprintf(stderr, "Usage: %s [-v vmlinux] [-k kernel_image] [-m bitness] [-a arch] [-f family] [-d device]\n",
+    fprintf(stderr, "Usage: %s [-o vmlinux_out] [-k kernel_image] [-m bitness] [-a arch] [-f family] [-d device]\n",
         name);
     exit(EXIT_FAILURE);
 }
+
+int pull_target_parameters(const char* target_a);
 
 void progHeadConstruction(Elf64_Phdr* phHead, size_t imageSz)
 {
@@ -54,6 +56,8 @@ int main(int argc, char **argv)
     const char* target_family = 0;
     const char* target_device = 0;
     const char* target_arch = 0;
+    const char* target_version = 0;
+    const char* target_config = 0;
 
     size_t bitness_local = 64;
     
@@ -64,11 +68,11 @@ int main(int argc, char **argv)
 
     const char* monitor = 0;
 
-    while ((opt = getopt(argc, argv, "v:k:m:a:f:d:")) != -1)
+    while ((opt = getopt(argc, argv, "o:k:m:a:f:d:")) != -1)
     {
         switch (opt)
         {
-        case 'v':
+        case 'o':
             vmlinux_targ = optarg;
             break;
         case 'k':
@@ -85,6 +89,12 @@ int main(int argc, char **argv)
             break;
         case 'd':
             target_device = optarg;
+            break;
+        case 'j':
+            target_config = optarg;
+            break;
+        case 'v':
+            target_version = optarg;
             break;
         default: /* '?' */
             usage(argv[0]);
@@ -108,6 +118,11 @@ int main(int argc, char **argv)
         vmlinux_dir_made = vmlinux_dir_copy;
         vmlinux_dir_made += "/vmlinux";
         vmlinux_targ = vmlinux_dir_made.data();
+    }
+
+    if (target_config != 0)
+    {
+        pull_target_parameters(target_config);
     }
 
     parsedKernimg = allocate_static_kernel(kernimg_targ,

@@ -43,7 +43,32 @@ public:
     // dlsym is for getting the kernel symbol location, really
     // extending that is just in case a symbol can't or shouldn't
     // be cached, for instance if a symbol table has been found.
-    int kdlsym(const char *newString, size_t *out_address);
+    int ksym_dlsym(const char *newString, uint64_t *out_address)
+    {
+        int result = -1;
+        uint64_t symtmp = 0;
+        named_kmap_t *mh_base = 0;
+        std::map<std::string, uint64_t>::iterator findres;
+
+        // if we have found it dynamically it will be here
+        FINISH_IF(kern_sym_fetch(newString, &symtmp) == 0);
+        FINISH_IF(kstruct_offset(newString, &symtmp) == 0);
+
+        // if we have not found it dynamically, then check kallsyms cache
+        // findres = kallsym_cache.find(newString);
+        // SAFE_BAIL(findres == kallsym_cache.end());
+        // symtmp = findres->second;
+
+        goto fail;
+    finish:
+        result = 0;
+        if (out_address != 0)
+        {
+            *out_address = symtmp;
+        }
+    fail:
+        return result;
+    }
 
     // get the index of a kstr in the ksymstr table.
     int findKindInKstr(const char *newString, int *index);
@@ -271,8 +296,8 @@ public:
             sh_type,
             sh_flags,
             sh_addr,
-            sh_offset,
-            sh_size,
+            (size_b)sh_offset,
+            (size_b)sh_size,
             sh_link,
             sh_info,
             sh_addralign,
@@ -285,12 +310,12 @@ public:
             newPhdr = new Elf_Phdr{
                 p_type,
                 p_flags,
-                sh_offset,
+                (size_b)sh_offset,
                 sh_addr,
                 sh_addr,
-                sh_size,
-                sh_size,
-                p_align};
+                (size_b)sh_size,
+                (size_b)sh_size,
+                (size_b)p_align};
 
             prog_list.push_back({sec_name, newPhdr});
         }

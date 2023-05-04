@@ -5,7 +5,11 @@
 #include <vector>
 #include <string>
 #include <libgen.h>
+
+#if defined(__linux__)
 #include <linux/limits.h>
+#endif
+
 #include <string.h>
 
 #include <lz4.h>

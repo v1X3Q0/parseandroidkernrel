@@ -9,8 +9,13 @@ set(INCLUDE_LIST
     ${ANDROID_TOOL_BASE}/common/kern_img/common
     ${ANDROID_TOOL_BASE}/linux/rwDrv/include
     ${ANDROID_TOOL_BASE}/common/krw_util/krw_util
-    /usr/include/json-c
     ${CMAKE_BINARY_DIR}/ksym_gpl)
+
+if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+    list(APPEND INCLUDE_LIST /usr/include/json-c)
+elseif(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+    list(APPEND INCLUDE_LIST /usr/local/include/json-c ${ANDROID_TOOL_BASE}/common/local_util/linux_compat)
+endif()
 
 add_library(${PROJECT_NAME} STATIC plk_core.cpp plk_kcrc_track.cpp)
 
