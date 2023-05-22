@@ -2,8 +2,11 @@
 #include <stdio.h>
 #include <json.h>
 #include <localUtil.h>
+#include <elf.h>
+#include <kern_img.h>
+#include <kern_static.h>
 
-int pull_target_parameters(const char* target_a)
+int pull_target_parameters(kern_static* targ_kern, const char* target_a)
 {
     int result = -1;
 
@@ -15,13 +18,18 @@ int pull_target_parameters(const char* target_a)
     char *json_block = 0;
     size_t json_block_sz = 0;
     lh_entry* tmpent = 0;
+    lh_entry* internaldef = 0;
     lh_table* tmptab = 0;
-
+    lh_table* internaltab = 0;
+    const char* internalval = 0;
+    const char* segtemp = 0;
+    const char* sectemp = 0;
+    
     if (target_a != 0)
     {
         SAFE_BAIL(block_grab(target_a, (void**)&json_block, &json_block_sz) != 0);
 
-        json_tokener_parse(json_block);
+        jobj = json_tokener_parse(json_block);
 
         // populate segments
         json_object *parsed_segments = json_object_object_get(jobj, "segments");
@@ -31,13 +39,116 @@ int pull_target_parameters(const char* target_a)
             if(tmptab != 0)
             {
                 tmpent = tmptab->head;
+                for (int i = 0; i < tmptab->count; i++)
+                {
+//                    don't need a name, but reference it for posterity's sake
+                    segtemp = (const char*)tmpent->k;
+                    internaltab = json_object_get_object((const struct json_object*)tmpent->v);
+                    if (internaltab != 0)
+                    {
+                        int prot = 0;
+                        uint64_t Virtual = 0;
+                        uint64_t Physical = 0;
+                        uint64_t FileOffset = 0;
+                        uint64_t size = 0;
+                        internaldef = internaltab->head;
+
+                        for (int j = 0; j < internaltab->count; j++)
+                        {
+                            internalval = json_object_get_string((struct json_object*)internaldef->v);
+                            std::string internaldefk = std::string((const char*)internaldef->k);
+                            std::string internalvals = std::string((const char*)internalval);
+                            if (internaldefk == "permissions")
+                            {
+                                if (internalvals.find("r") != -1)
+                                {
+                                    prot |= PF_R;
+                                }
+                                if (internalvals.find("w") != -1)
+                                {
+                                    prot |= PF_W;
+                                }
+                                if (internalvals.find("x") != -1)
+                                {
+                                    prot |= PF_X;
+                                }
+                                
+                            }
+                            else if (internaldefk == "Virtual")
+                            {
+                                Virtual = strtoull(internalvals.c_str(), NULL, 0x10);
+                            }
+                            else if (internaldefk == "Physical")
+                            {
+                                Physical = strtoull(internalvals.c_str(), NULL, 0x10);
+                            }
+                            else if (internaldefk == "FileOffset")
+                            {
+                                FileOffset = strtoull(internalvals.c_str(), NULL, 0x10);
+                            }
+//                            else if (internaldefk == "fileback")
+//                            {
+//
+//                            }
+                            else if (internaldefk == "size")
+                            {
+                                size = strtoull(internalvals.c_str(), NULL, 0x10);
+                            }
+                            internaldef = internaldef->next;
+                        }
+                        targ_kern->insert_elfsegment(segtemp, prot, Virtual, Physical, FileOffset, size);
+//                        we have a complete segment, construct and iterate next
+                    }
+                    tmpent = tmpent->next;
+                }
             }
         }
 
 
         // popoulate sections
-
         json_object *parsed_sections = json_object_object_get(jobj, "sections");
+        if (parsed_segments != 0)
+        {
+            tmptab = json_object_get_object(parsed_sections);
+            if(tmptab != 0)
+            {
+                tmpent = tmptab->head;
+                for (int i = 0; i < tmptab->count; i++)
+                {
+                    sectemp = (const char*)tmpent->k;
+                    internaltab = json_object_get_object((const struct json_object*)tmpent->v);
+                    if (internaltab != 0)
+                    {
+                        internaldef = internaltab->head;
+                        uint64_t Virtual = 0;
+                        uint64_t FileOffset = 0;
+                        uint64_t size = 0;
+                        for (int j = 0; j < internaltab->count; j++)
+                        {
+                            internalval = json_object_get_string((struct json_object*)internaldef->v);
+                            std::string internaldefk = std::string((const char*)internaldef->k);
+                            std::string internalvals = std::string((const char*)internalval);
+                            if (internaldefk == "Virtual")
+                            {
+                                Virtual = strtoull(internalvals.c_str(), NULL, 0x10);
+                            }
+                            else if (internaldefk == "FileOffset")
+                            {
+                                FileOffset = strtoull(internalvals.c_str(), NULL, 0x10);
+                            }
+                            else if (internaldefk == "size")
+                            {
+                                size = strtoull(internalvals.c_str(), NULL, 0x10);
+                            }
+                            internaldef = internaldef->next;
+                        }
+                        targ_kern->insert_elfsection(sectemp, Virtual, FileOffset, size);
+//                        we have a complete segment, construct and iterate next
+                    }
+                    tmpent = tmpent->next;
+                }
+            }
+        }
     }
 
     result = 0;

@@ -17,9 +17,7 @@ bool strcmp_bool(const char* first, const char* second)
     return false;
 }
 
-template <typename size_b, typename Elf_Ehdr, typename Elf_Shdr,
-    typename Elf_Phdr, typename Elf_Xword, typename Elf_Word>
-int kern_static<size_b, Elf_Ehdr, Elf_Shdr, Elf_Phdr, Elf_Xword, Elf_Word>::populate_kcrc_map()
+int kern_static::populate_kcrc_map()
 {
     int result = -1;
     Elf64_Shdr* kstrtab_sec = 0;

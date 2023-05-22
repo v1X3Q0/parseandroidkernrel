@@ -13,49 +13,29 @@
 #include "spare_vmlinux.h"
 #include "kern_static.h"
 
-template <typename Elf_Shdr>
-bool cmp_Shdr(std::pair<std::string, Elf_Shdr*>& a,
-         std::pair<std::string, Elf_Shdr*>& b)
+void* kern_static::find_prog(std::string lookupKey)
 {
-    return a.second->sh_offset < b.second->sh_offset;
+    return vector_pair_key_find<std::string, void*>(&prog_list, lookupKey);
 }
 
-template <typename Elf_Phdr>
-bool cmp_Phdr(std::pair<std::string, Elf_Phdr*>& a,
-         std::pair<std::string, Elf_Phdr*>& b)
+void* kern_static::find_sect(std::string lookupKey)
 {
-    return a.second->p_offset < b.second->p_offset;
+    return vector_pair_key_find<std::string, void*>(&sect_list, lookupKey);
 }
 
-template <typename size_b, typename Elf_Ehdr, typename Elf_Shdr,
-    typename Elf_Phdr, typename Elf_Xword, typename Elf_Word>
-Elf_Phdr* kern_static<size_b, Elf_Ehdr, Elf_Shdr, Elf_Phdr, Elf_Xword, Elf_Word>::find_prog(std::string lookupKey)
-{
-    return vector_pair_key_find<std::string, Elf64_Phdr*>(&prog_list, lookupKey);
-}
-
-template <typename size_b, typename Elf_Ehdr, typename Elf_Shdr,
-    typename Elf_Phdr, typename Elf_Xword, typename Elf_Word>
-Elf_Shdr* kern_static<size_b, Elf_Ehdr, Elf_Shdr, Elf_Phdr, Elf_Xword, Elf_Word>::find_sect(std::string lookupKey)
-{
-    return vector_pair_key_find<std::string, Elf_Shdr*>(&sect_list, lookupKey);
-}
-
-template <typename size_b, typename Elf_Ehdr, typename Elf_Shdr,
-    typename Elf_Phdr, typename Elf_Xword, typename Elf_Word>
-int kern_static<size_b, Elf_Ehdr, Elf_Shdr, Elf_Phdr, Elf_Xword, Elf_Word>::check_sect(std::string sect_name, Elf_Shdr** sect_out)
+int kern_static::check_sect(std::string sect_name, void* sect_out)
 {
     int result = -1;
     int index = 0;
 
-    index = vector_pair_ind<std::string, Elf_Shdr*>(&sect_list, sect_name);
+    index = vector_pair_ind<std::string, void*>(&sect_list, sect_name);
     SAFE_BAIL(index == -1);
     // SAFE_BAIL(sect_list.find(sect_name) == sect_list.end());
 
     if (sect_out != 0)
     {
         // *sect_out = &sect_list[sect_name];
-        *sect_out = sect_list[index].second;
+        *(void**)sect_out = sect_list[index].second;
     }
 
     result = 0;
@@ -63,15 +43,15 @@ fail:
     return result;
 }
 
-template <typename size_b, typename Elf_Ehdr, typename Elf_Shdr,
-    typename Elf_Phdr, typename Elf_Xword, typename Elf_Word>
-int kern_static<size_b, Elf_Ehdr, Elf_Shdr, Elf_Phdr, Elf_Xword, Elf_Word>::gen_shstrtab(std::string** out_shstrtab, uint16_t* numSects, uint16_t* shstrtab_index)
+ELFBIT
+int kern_static::gen_shstrtab_p(std::string** out_shstrtab, uint16_t* numSects, uint16_t* shstrtab_index)
 {
     std::string shstrtabTmp = "\0";
     uint16_t sect_iter = 0;
     uint16_t str_index = 0;
+    std::vector<std::pair<std::string, Elf_Shdr*>>* sect_list_l = (std::vector<std::pair<std::string, Elf_Shdr*>>*)&sect_list;
     
-    for (auto i = sect_list.begin(); i != sect_list.end(); i++)
+    for (auto i = sect_list_l->begin(); i != sect_list_l->end(); i++)
     {
         i->second->sh_name = shstrtabTmp.size();
         shstrtabTmp = shstrtabTmp + i->first + '\0';
@@ -100,9 +80,10 @@ finish:
     return 0;
 }
 
-template <typename size_b, typename Elf_Ehdr, typename Elf_Shdr,
-    typename Elf_Phdr, typename Elf_Xword, typename Elf_Word>
-int kern_static<size_b, Elf_Ehdr, Elf_Shdr, Elf_Phdr, Elf_Xword, Elf_Word>::base_new_shstrtab()
+int kern_static::gen_shstrtab(std::string** out_shstrtab, uint16_t* numSects, uint16_t* shstrtab_index)
+TEMPLIFY(gen_shstrtab, out_shstrtab, numSects, shstrtab_index)
+
+int kern_static::base_new_shstrtab()
 {
     char strtabRef[] = ".shstrtab";
     std::string* shtstrtab_tmp = 0;
@@ -110,21 +91,5 @@ int kern_static<size_b, Elf_Ehdr, Elf_Shdr, Elf_Phdr, Elf_Xword, Elf_Word>::base
     gen_shstrtab(&shtstrtab_tmp, NULL, NULL);
     insert_section(strtabRef, kern_sz, shtstrtab_tmp->size() + sizeof(strtabRef));
     return 0;
-}
-
-kernel_linux* allocate_static_kernel(const char* kern_filename, uint32_t bitness)
-{
-    kernel_linux* h = 0;
-
-    if (bitness == 32)
-    {
-        h = kernel_block::allocate_kern_img<kern_static<uint32_t, Elf32_Ehdr, Elf32_Shdr, Elf32_Phdr, Elf32_Xword, Elf32_Word>>(kern_filename);
-    }
-    else if (bitness == 64)
-    {
-        h = kernel_block::allocate_kern_img<kern_static<uint64_t, Elf64_Ehdr, Elf64_Shdr, Elf64_Phdr, Elf64_Xword, Elf64_Word>>(kern_filename);
-    }
-    
-    return h;
 }
 

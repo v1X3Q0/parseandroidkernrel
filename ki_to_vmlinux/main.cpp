@@ -20,7 +20,7 @@ int usage(const char* name)
     exit(EXIT_FAILURE);
 }
 
-int pull_target_parameters(const char* target_a);
+int pull_target_parameters(kern_static* targ_kern, const char* target_a);
 
 void progHeadConstruction(Elf64_Phdr* phHead, size_t imageSz)
 {
@@ -50,7 +50,7 @@ int main(int argc, char **argv)
     kernel_symbol* ksymBase = 0;
     size_t ksymCount = 0;
     uint32_t* kcrcBase = 0;
-    kernel_linux* parsedKernimg = 0;
+    kern_static* parsedKernimg = 0;
     Elf64_Phdr* phdrBase = 0;
 
     const char* target_family = 0;
@@ -68,12 +68,21 @@ int main(int argc, char **argv)
 
     const char* monitor = 0;
 
-    while ((opt = getopt(argc, argv, "o:k:m:a:f:d:")) != -1)
+    while ((opt = getopt(argc, argv, "a:d:f:j:k:m:o:")) != -1)
     {
         switch (opt)
         {
-        case 'o':
-            vmlinux_targ = optarg;
+        case 'a':
+            target_arch = optarg;
+            break;
+        case 'd':
+            target_device = optarg;
+            break;
+        case 'f':
+            target_family = optarg;
+            break;
+        case 'j':
+            target_config = optarg;
             break;
         case 'k':
             kernimg_targ = optarg;
@@ -81,17 +90,8 @@ int main(int argc, char **argv)
         case 'm':
             bitness_local = atoi(optarg);
             break;
-        case 'a':
-            target_arch = optarg;
-            break;
-        case 'f':
-            target_family = optarg;
-            break;
-        case 'd':
-            target_device = optarg;
-            break;
-        case 'j':
-            target_config = optarg;
+        case 'o':
+            vmlinux_targ = optarg;
             break;
         case 'v':
             target_version = optarg;
@@ -120,14 +120,13 @@ int main(int argc, char **argv)
         vmlinux_targ = vmlinux_dir_made.data();
     }
 
+    parsedKernimg = kernel_block::allocate_kern_img<kern_static>(kernimg_targ, bitness_local);
+    SAFE_BAIL(parsedKernimg == 0);
+
     if (target_config != 0)
     {
-        pull_target_parameters(target_config);
+        pull_target_parameters(parsedKernimg, target_config);
     }
-
-    parsedKernimg = allocate_static_kernel(kernimg_targ,
-        bitness_local);
-    SAFE_BAIL(parsedKernimg == 0);
 
     out_vmlinux = fopen(vmlinux_targ, "w");
     SAFE_BAIL(out_vmlinux == 0);
@@ -138,7 +137,7 @@ int main(int argc, char **argv)
     result = 0;
 fail:
     SAFE_FCLOSE(out_vmlinux);
-    // SAFE_DEL(parsedKernimg);
+    SAFE_DEL(parsedKernimg);
     SAFE_FREE(vmlinuxBase);
     return result;
 }

@@ -99,7 +99,7 @@ int main(int argc, char **argv)
     }
     else if (kernimg_targ != 0)
     {
-        allocate_static_kernel(kernimg_targ, bitness_local);
+        parsedKernimg = kernel_block::allocate_kern_img<kern_static>(kernimg_targ, bitness_local);
         SAFE_FAIL(parsedKernimg == 0, "kernel image  was invalid\n");
     }
 
