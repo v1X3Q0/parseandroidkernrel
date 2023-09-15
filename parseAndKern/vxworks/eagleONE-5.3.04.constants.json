@@ -1,0 +1,49 @@
+{
+    "filetype": "vxworksraw",
+    "segments": {
+        "kernel": {
+            "permissions": "rwx",
+            "Virtual": "0x80000000",
+            "Physical": "0x80000000",
+            "FileOffset": "0",
+            "fileback": "range_0x80000000_0x80600000.bin",
+            "size": "0x38a3c0"
+        }
+    },
+    "sections": {
+        ".text": {
+            "Virtual": "0x80001000",
+            "FileOffset": "0x1000",
+            "size": "0x2F4870",
+            "comment": "system image text section"
+        },
+        ".data": {
+            "Virtual": "0x802f5870",
+            "FileOffset": "0x2f5870",
+            "size": "0x94B50",
+            "comment": "system image data section"
+        },
+        ".bss": {
+            "Virtual": "0x8038a3c0",
+            "FileOffset": "0x38a3c0",
+            "size": "",
+            "comment": "system image bss section"
+        },
+        "functiontable": {
+            "Virtual": "0x005d9280",
+            "FileOffset": "0x005c9280",
+            "size": "0x5258C"
+        },
+        "strings": {
+            "Virtual": "0x006a9E98",
+            "FileOffset": "0x00699E98",
+            "size": "0xC9450"
+        },
+        "symbols": {
+            "Virtual": "0x0074b338",
+            "FileOffset": "0x0073b338",
+            "size": "0x4E070",
+            "comment": "used to be 0x007dc1bc, used it to find real at 007ec1bc"
+        }
+    }
+}

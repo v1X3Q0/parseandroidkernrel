@@ -13,38 +13,8 @@
 #include "spare_vmlinux.h"
 #include "kern_static.h"
 
-void* kern_static::find_prog(std::string lookupKey)
-{
-    return vector_pair_key_find<std::string, void*>(&prog_list, lookupKey);
-}
-
-void* kern_static::find_sect(std::string lookupKey)
-{
-    return vector_pair_key_find<std::string, void*>(&sect_list, lookupKey);
-}
-
-int kern_static::check_sect(std::string sect_name, void* sect_out)
-{
-    int result = -1;
-    int index = 0;
-
-    index = vector_pair_ind<std::string, void*>(&sect_list, sect_name);
-    SAFE_BAIL(index == -1);
-    // SAFE_BAIL(sect_list.find(sect_name) == sect_list.end());
-
-    if (sect_out != 0)
-    {
-        // *sect_out = &sect_list[sect_name];
-        *(void**)sect_out = sect_list[index].second;
-    }
-
-    result = 0;
-fail:
-    return result;
-}
-
 ELFBIT
-int kern_static::gen_shstrtab_p(std::string** out_shstrtab, uint16_t* numSects, uint16_t* shstrtab_index)
+int kern_static::gen_shstrtab_p(size_t target_offset, std::string** out_shstrtab, uint16_t* numSects, uint16_t* shstrtab_index)
 {
     std::string shstrtabTmp = "\0";
     uint16_t sect_iter = 0;
@@ -60,6 +30,14 @@ int kern_static::gen_shstrtab_p(std::string** out_shstrtab, uint16_t* numSects, 
             // add 1 for the null section
             str_index = sect_iter + 1;
         }
+        sect_iter++;
+    }
+    
+    if (str_index == 0)
+    {
+        shstrtabTmp = shstrtabTmp + ".shstrtab" + '\0';
+        insert_elfsection(".shstrtab", 0, target_offset, shstrtabTmp.size());
+        str_index = sect_iter + 1;
         sect_iter++;
     }
 
@@ -80,15 +58,15 @@ finish:
     return 0;
 }
 
-int kern_static::gen_shstrtab(std::string** out_shstrtab, uint16_t* numSects, uint16_t* shstrtab_index)
-TEMPLIFY(gen_shstrtab, out_shstrtab, numSects, shstrtab_index)
+int kern_static::gen_shstrtab(size_t target_offset, std::string** out_shstrtab, uint16_t* numSects, uint16_t* shstrtab_index)
+TEMPLIFY(gen_shstrtab, target_offset, out_shstrtab, numSects, shstrtab_index)
 
 int kern_static::base_new_shstrtab()
 {
     char strtabRef[] = ".shstrtab";
     std::string* shtstrtab_tmp = 0;
 
-    gen_shstrtab(&shtstrtab_tmp, NULL, NULL);
+    gen_shstrtab(NULL, &shtstrtab_tmp, NULL, NULL);
     insert_section(strtabRef, kern_sz, shtstrtab_tmp->size() + sizeof(strtabRef));
     return 0;
 }

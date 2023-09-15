@@ -1,0 +1,30 @@
+{
+    "filetype": "/Users/mariomain/repos/postec_plural/build-out/linux/helpers/tools/parseandroidkernrel/parseAndKern/vxworks/Debug/libvxworksraw.dylib",
+    "segments": {
+        "kernel": {
+            "permissions": "rwx",
+            "Virtual": "0x10000",
+            "Physical": "0x10000",
+            "FileOffset": "0",
+            "size": "0x82f444"
+        }
+    },
+    "sections": {
+        ".strtab": {
+            "Virtual": "0x00648ea8",
+            "FileOffset": "0x00638ea8",
+            "size": "0x60FF0"
+        },
+        "strings": {
+            "Virtual": "0x006a9E98",
+            "FileOffset": "0x00699E98",
+            "size": "0xC9450"
+        },
+        "symbols": {
+            "Virtual": "0x007ec1bc",
+            "FileOffset": "0x007dc1bc",
+            "size": "0x52F6C",
+            "comment": "used to be 0x007dc1bc, used it to find real at 007ec1bc"
+        }
+    }
+}

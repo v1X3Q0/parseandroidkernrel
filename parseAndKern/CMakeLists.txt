@@ -22,3 +22,5 @@ add_library(${PROJECT_NAME} STATIC plk_core.cpp plk_kcrc_track.cpp kern_static.c
 add_dependencies(${PROJECT_NAME} ksym_gpl)
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${INCLUDE_LIST})
+
+add_subdirectory(vxworks)

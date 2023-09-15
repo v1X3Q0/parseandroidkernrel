@@ -1,0 +1,32 @@
+{
+    "filetype": "vxworksraw",
+    "segments": {
+        "kernel": {
+            "permissions": "rwx",
+            "Virtual": "0x80000000",
+            "Physical": "0x80000000",
+            "FileOffset": "0",
+            "fileback": "range_0x80000000_0x80600000.bin",
+            "size": "0x38a3c0"
+        }
+    },
+    "sections": {
+        ".strtab": {
+            "Virtual": "0x007b29b8",
+            "FileOffset": "0x007a29b8",
+            "size": "0x77998",
+            "comment": "the function and object symbol table"
+        },
+        "strings": {
+            "Virtual": "0x006a9E98",
+            "FileOffset": "0x00699E98",
+            "size": "0xC9450"
+        },
+        "symbols": {
+            "Virtual": "0x00996538",
+            "FileOffset": "0x00986538",
+            "size": "0x656F4",
+            "comment": "used to be 0x007dc1bc, used it to find real at 007ec1bc"
+        }
+    }
+}

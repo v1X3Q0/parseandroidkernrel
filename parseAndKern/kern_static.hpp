@@ -10,13 +10,20 @@ int kern_static::gen_vmlinux_sz_p(size_t *outSz, size_t headOffset)
     // we are gonna consider that the header size SHOULD just be a page, however
     // under the condition that maybe we got a dummy thicc header, we allow it
     // to be passed in.
-    szTemp += headOffset;
+    // szTemp += headOffset;
+    szTemp += sizeof(Elf_Ehdr) + sizeof(Elf_Phdr) * prog_list.size();
 
     // we are using the whole parsed kernel image as input, so add that.
     szTemp += kern_sz;
 
+    // these two don't have to be true, but if they are they need to be added.
+    // add sizes for new string table
+    szTemp += newstrtabsz;
+    // add sizes for symtab
+    szTemp += newsymtabsz;
+
     // generate shstrtab
-    gen_shstrtab(&shstrtab_tmp, NULL, NULL);
+    gen_shstrtab(szTemp, &shstrtab_tmp, NULL, NULL);
 
     // adding the shstrtab to the image whole
     szTemp += shstrtab_tmp->size();
@@ -25,6 +32,7 @@ int kern_static::gen_vmlinux_sz_p(size_t *outSz, size_t headOffset)
     szTemp += ((sect_list_l->size() + 1) * sizeof(Elf_Shdr));
 
     *outSz = szTemp;
+    SAFE_DEL(shstrtab_tmp);
     return 0;
 }
 
@@ -38,14 +46,20 @@ void kern_static::elfConstruction_p()
     std::string vmlinux_dir_made;
 
     kernel_symbol *ksymBase = 0;
-    kern_static *parsedKernimg = 0;
     Elf_Phdr *phdrBase = 0;
 
     std::string *shstrtab_tmp;
     void *vmlinux_iter = 0;
 
+    void* symtab = 0;
+    size_t symtabsz = 0;
+
+    // handle symtable
+    // parsedKernimg->gen_strtab();
+    gen_symtab(&symtab, &symtabsz);
+
     // alloc outfile
-    parsedKernimg->gen_vmlinux_sz(&vmlinux_sz, PAGE_SIZE);
+    gen_vmlinux_sz(&vmlinux_sz, PAGE_SIZE);
 
     if ((vmlinux_sz % PAGE_MASK4K) != 0)
     {
@@ -60,26 +74,36 @@ void kern_static::elfConstruction_p()
 
     // write the new program header to the new vmlinux
     phdrBase = (Elf_Phdr *)vmlinux_iter;
+    for (int i = 0; i < prog_list.size(); i++)
+    {
+        ((Elf_Phdr*)prog_list[i].second)->p_offset + sizeof(Elf_Ehdr) + sizeof(Elf_Phdr) * vmlinuxBase->e_phnum;
+        memcpy(vmlinux_iter, (Elf_Phdr *)prog_list[i].second, sizeof(Elf_Phdr));
+        vmlinux_iter = (void*)((size_t)vmlinux_iter + sizeof(Elf_Phdr));
+    }
     // insert_phdr(PT_LOAD, PF_X | PF_W | PF_R, PAGE_SIZE4K, ANDROID_KERNBASE, ANDROID_KERNBASE,
     //     parsedKernimg->get_kernimg_sz(), parsedKernimg->get_kernimg_sz(), 0x10000);
     // patch_and_write_phdr((Elf64_Phdr*)vmlinux_iter, &g_phArray);
-    vmlinux_iter = (void *)((size_t)vmlinuxBase + PAGE_SIZE);
+    // vmlinux_iter = (void *)((size_t)vmlinuxBase + PAGE_SIZE);
 
     // write the kernel image itself to the new vmlinux
     kernimgBase = (char *)vmlinux_iter;
-    memcpy(vmlinux_iter, (void *)parsedKernimg->get_binbegin(), parsedKernimg->get_kernimg_sz());
-    vmlinux_iter = (void *)((size_t)vmlinux_iter + parsedKernimg->get_kernimg_sz());
+    memcpy(vmlinux_iter, (void *)get_binbegin(), get_kernimg_sz());
+    vmlinux_iter = (void *)((size_t)vmlinux_iter + get_kernimg_sz());
+
+    // if there is a symbol table, update it
+    memcpy(vmlinux_iter, symtab, symtabsz);
 
     // write the new shstrtab to vmlinux
-    parsedKernimg->gen_shstrtab(&shstrtab_tmp, &vmlinuxBase->e_shnum, &vmlinuxBase->e_shstrndx);
+    gen_shstrtab(NULL, &shstrtab_tmp, &vmlinuxBase->e_shnum, &vmlinuxBase->e_shstrndx);
     memcpy(vmlinux_iter, shstrtab_tmp->data(), shstrtab_tmp->size());
     vmlinux_iter = (void *)((size_t)vmlinux_iter + shstrtab_tmp->size());
 
     // patch the section header and write it to the binary, adjusting for
     // the program header and the elf header
     vmlinuxBase->e_shoff = ((size_t)vmlinux_iter - (size_t)vmlinuxBase);
-    parsedKernimg->patch_and_write(vmlinuxBase, (Elf_Shdr *)vmlinux_iter, phdrBase, (size_t)kernimgBase - (size_t)vmlinuxBase);
+    patch_and_write(vmlinuxBase, (Elf_Shdr *)vmlinux_iter, phdrBase, (size_t)kernimgBase - (size_t)vmlinuxBase);
 fail:
+    SAFE_DEL(shstrtab_tmp);
     SAFE_FREE(vmlinuxBase);
 }
 
@@ -89,31 +113,36 @@ void kern_static::elfHeadConstruction_p(void* elfHead_a)
     Elf_Ehdr* elfHead = (Elf_Ehdr*)elfHead_a;
     memset(elfHead, 0, sizeof(Elf_Ehdr));
     memcpy(&elfHead->e_ident[EI_MAG0], ELFMAG, sizeof(uint32_t));
-    if (sizeof(size_b) == 4)
+    if (bitness == 32)
     {
         elfHead->e_ident[EI_CLASS] = ELFCLASS32;
-        elfHead->e_machine = EM_ARM;
     }
-    else
+    else if (bitness == 64)
     {
         elfHead->e_ident[EI_CLASS] = ELFCLASS64;
-        elfHead->e_machine = EM_AARCH64;
-        elfHead->e_entry = ANDROID_KERNBASE;
     }
-    elfHead->e_ident[EI_DATA] = ELFDATA2LSB;
+
+    // EM_AARCH64
+    elfHead->e_machine = architecture;
+    // ELFDATA2LSB;
+    elfHead->e_ident[EI_DATA] = endianess;
+
     elfHead->e_ident[EI_VERSION] = EV_CURRENT;
 
     elfHead->e_type = ET_DYN;
     elfHead->e_version = EV_CURRENT;
     elfHead->e_phoff = sizeof(Elf_Ehdr);
-    // elfHead->e_shoff
     elfHead->e_flags = 0x602;
     elfHead->e_ehsize = sizeof(Elf_Ehdr);
     elfHead->e_phentsize = sizeof(Elf_Phdr);
-    // elfHead->e_phnum
+    elfHead->e_phnum = prog_list.size();
     elfHead->e_shentsize = sizeof(Elf_Shdr);
-    // elfHead->e_shnum
-    // elfHead->e_shstrndx
+
+    elfHead->e_shnum = sect_list.size();
+    elfHead->e_shstrndx = sect_list.size() - 1;
+
+    elfHead->e_entry = 0;
+    elfHead->e_shoff = kern_sz + sizeof(Elf_Ehdr) + sizeof(Elf_Phdr);
 }
 
 // patch the out binary, section table base at vmlinux_cur and ph base at phBase
@@ -125,14 +154,29 @@ int kern_static::patch_and_write_p(void* vmlinux_base_a, void* vmlinux_cur_a, vo
     Elf_Shdr* vmlinux_cur = (Elf_Shdr*)vmlinux_cur_a;
     Elf_Phdr* phBase = (Elf_Phdr*)phBase_a;
     int result = -1;
-    Elf_Shdr nullSec = {0};
     Elf_Phdr *phdrTemp = 0;
     int phdrCount = 0;
     std::vector<std::pair<std::string, Elf_Shdr*>>* sect_list_l = (std::vector<std::pair<std::string, Elf_Shdr*>>*)&sect_list;
-    memcpy(vmlinux_cur, &nullSec, sizeof(Elf_Shdr));
+    int sectlast = 0;
+
+    memset(vmlinux_cur, 0, sizeof(Elf_Shdr));
     vmlinux_cur++;
     auto j = sect_list_l->begin();
+    // skip null?
+    size_t strlast = 0;
+    size_t strlastsz = 0;
     j++;
+
+    strlast = ((Elf_Shdr*)(find_sect(".shstrtab")))->sh_offset;
+    if (newstrtab != 0)
+    {
+        ((Elf_Shdr*)(find_sect(".strtab")))->sh_offset = strlast - newstrtabsz;
+        strlast = strlast - newstrtabsz;
+    }
+    if (newsymtab != 0)
+    {
+        ((Elf_Shdr*)(find_sect(".symtab")))->sh_offset = strlast - newstrtabsz;
+    }
 
     for (auto i = sect_list_l->begin(); i != sect_list_l->end(); i++)
     {
@@ -141,6 +185,17 @@ int kern_static::patch_and_write_p(void* vmlinux_base_a, void* vmlinux_cur_a, vo
         if ((i->second->sh_size == 0) && (j != sect_list_l->end()))
         {
             i->second->sh_size = (j->second->sh_offset + offset) - i->second->sh_offset;
+        }
+
+        // for this one I don't think I have to do anything, since it was appended correctly
+        if (i->first == ".shstrtab")
+        {
+
+        }
+        // meanwhile for the symbol table that was added, we have to readjust for the offset
+        else if ((i->first == ".symtab") && (newsymtab != 0))
+        {
+            ((Elf_Shdr*)(find_sect(".symtab")))->sh_offset = ((Elf_Shdr*)(find_sect(".shstrtab")))->sh_offset - newsymtabsz;
         }
         // push the changes and the segment header
         memcpy(vmlinux_cur, i->second, sizeof(Elf_Shdr));
@@ -344,6 +399,18 @@ void kern_static::insert_elfsection_p(std::string sec_name, uint64_t Virtual, ui
         sh_entsize};
 
     sect_list_l->push_back({sec_name, newShdr});
+}
+
+ELFBIT
+void kern_static::insert_elfsymbol_p(std::string symname, int symtype, uint64_t symval, uint64_t offset)
+{
+
+}
+
+ELFBIT
+void kern_static::ref_elfsymbol_p(const char* symname, int symtype, uint64_t symval)
+{
+    
 }
 
 ELFBIT

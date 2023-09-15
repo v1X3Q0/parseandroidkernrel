@@ -15,7 +15,7 @@
 
 int usage(const char* name)
 {
-    fprintf(stderr, "Usage: %s [-o vmlinux_out] [-k kernel_image] [-m bitness] [-a arch] [-f family] [-d device]\n",
+    fprintf(stderr, "Usage: %s [-o vmlinux_out] [-f family] [-d device] -j jsonconfig -m bitness -a arch -e endianess kernel_image\n",
         name);
     exit(EXIT_FAILURE);
 }
@@ -42,6 +42,7 @@ int main(int argc, char **argv)
     const char* kernimg_targ = 0;
     Elf64_Ehdr* vmlinuxBase = 0;
     char *kernimgBase = 0;
+    size_t kernimgSz = 0;
     size_t vmlinux_sz;
     char vmlinux_dir_copy[PATH_MAX] = { 0 };
     std::string vmlinux_dir_made;
@@ -55,11 +56,12 @@ int main(int argc, char **argv)
 
     const char* target_family = 0;
     const char* target_device = 0;
-    const char* target_arch = 0;
     const char* target_version = 0;
     const char* target_config = 0;
 
-    size_t bitness_local = 64;
+    int target_arch = 0;
+    int endianess = 0;
+    size_t bitness_local = 0;
     
     std::string* shstrtab_tmp;
     void* vmlinux_iter = 0;
@@ -68,27 +70,69 @@ int main(int argc, char **argv)
 
     const char* monitor = 0;
 
-    while ((opt = getopt(argc, argv, "a:d:f:j:k:m:o:")) != -1)
+    while ((opt = getopt(argc, argv, "a:e:m:j:o:v:d:f:")) != -1)
     {
         switch (opt)
         {
         case 'a':
-            target_arch = optarg;
+            if (strcmp(optarg, "armv7") == 0)
+            {
+                target_arch = EM_ARM;
+                bitness_local = 32;
+                endianess = ELFDATA2LSB;
+            }
+            else if (strcmp(optarg, "armv7eb") == 0)
+            {
+                target_arch = EM_ARM;
+                bitness_local = 32;
+                endianess = ELFDATA2MSB;
+            }
+            else if (strcmp(optarg, "aarch64") == 0)
+            {
+                target_arch = EM_AARCH64;
+                bitness_local = 64;
+                endianess = ELFDATA2LSB;
+            }
+            else if (strcmp(optarg, "ppc32") == 0)
+            {
+                target_arch = EM_PPC;
+                bitness_local = 32;
+                endianess = ELFDATA2MSB;
+            }
+            else if (strcmp(optarg, "ppc64") == 0)
+            {
+                target_arch = EM_PPC64;
+                bitness_local = 64;
+                endianess = ELFDATA2MSB;
+            }
+            else if (strcmp(optarg, "x86") == 0)
+            {
+                target_arch = EM_386;
+                bitness_local = 32;
+                endianess = ELFDATA2LSB;
+            }
+            else if (strcmp(optarg, "x86_64") == 0)
+            {
+                target_arch = EM_X86_64;
+                bitness_local = 64;
+                endianess = ELFDATA2LSB;
+            }
             break;
-        case 'd':
-            target_device = optarg;
-            break;
-        case 'f':
-            target_family = optarg;
-            break;
-        case 'j':
-            target_config = optarg;
-            break;
-        case 'k':
-            kernimg_targ = optarg;
+        case 'e':
+            if (strcmp(optarg, "little") == 0)
+            {
+                endianess = ELFDATA2LSB;
+            }
+            else if (strcmp(optarg, "big") == 0)
+            {
+                endianess = ELFDATA2MSB;
+            }
             break;
         case 'm':
             bitness_local = atoi(optarg);
+            break;
+        case 'j':
+            target_config = optarg;
             break;
         case 'o':
             vmlinux_targ = optarg;
@@ -96,9 +140,21 @@ int main(int argc, char **argv)
         case 'v':
             target_version = optarg;
             break;
+        case 'd':
+            target_device = optarg;
+            break;
+        case 'f':
+            target_family = optarg;
+            break;
         default: /* '?' */
             usage(argv[0]);
         }
+    }
+    
+    if (optind < argc)
+    {
+        kernimg_targ = argv[optind];
+        optind++;
     }
 
     if (kernimg_targ == 0)
@@ -120,13 +176,16 @@ int main(int argc, char **argv)
         vmlinux_targ = vmlinux_dir_made.data();
     }
 
-    parsedKernimg = kernel_block::allocate_kern_img<kern_static>(kernimg_targ, bitness_local);
-    SAFE_BAIL(parsedKernimg == 0);
-
+    SAFE_BAIL(block_grab(kernimg_targ, (void**)&kernimgBase, &kernimgSz) == -1);
+    parsedKernimg = new kern_static(kernimgBase, kernimgSz, bitness_local, target_arch, endianess);
+    parsedKernimg->parseAndGetGlobals();
+    
     if (target_config != 0)
     {
         pull_target_parameters(parsedKernimg, target_config);
     }
+    
+    parsedKernimg->elfConstruction();
 
     out_vmlinux = fopen(vmlinux_targ, "w");
     SAFE_BAIL(out_vmlinux == 0);

@@ -46,17 +46,20 @@ bool cmp_Phdr(std::pair<std::string, Elf_Phdr*>& a,
 }
 
 #define ELFBIT     template <typename size_b, typename Elf_Ehdr, typename Elf_Shdr, \
-            typename Elf_Phdr, typename Elf_Xword, typename Elf_Word>
+            typename Elf_Phdr, typename Elf_Xword, typename Elf_Word, typename Elf_Sym>
+
+#define ELFBIT32 <uint32_t, Elf32_Ehdr, Elf32_Shdr, Elf32_Phdr, Elf32_Xword, Elf32_Word, Elf32_Sym>
+#define ELFBIT64 <uint64_t, Elf64_Ehdr, Elf64_Shdr, Elf64_Phdr, Elf64_Xword, Elf64_Word, Elf64_Sym>
 
 #define TEMPLIFY(FUNC, ...) \
     { \
         if (bitness == 64) \
         { \
-            return FUNC ## _p<uint64_t, Elf64_Ehdr, Elf64_Shdr, Elf64_Phdr, Elf64_Xword, Elf64_Word>(__VA_ARGS__); \
+            return FUNC ## _p ELFBIT64(__VA_ARGS__); \
         } \
         else \
         { \
-            return FUNC ## _p<uint32_t, Elf32_Ehdr, Elf32_Shdr, Elf32_Phdr, Elf32_Xword, Elf32_Word>(__VA_ARGS__); \
+            return FUNC ## _p ELFBIT32(__VA_ARGS__); \
         } \
     }
 
@@ -97,7 +100,7 @@ public:
 
     // get the index of a kstr in the ksymstr table.
     int findKindInKstr(const char *newString, int *index);
-    int gen_shstrtab(std::string **out_shstrtab, uint16_t *numSects, uint16_t *shstrtab_index);
+    int gen_shstrtab(size_t targetoffset, std::string **out_shstrtab, uint16_t *numSects, uint16_t *shstrtab_index);
 
     // wrappers
     int gen_vmlinux_sz(size_t *outSz, size_t headOffset);
@@ -108,7 +111,18 @@ public:
     void insert_section(std::string sec_name, uint64_t sh_offset, uint64_t sh_size);
     void insert_elfsegment(std::string sec_name, int permissions, uint64_t Virtual, uint64_t Physical, uint64_t FileOffset,  uint64_t sh_size);
     void insert_elfsection(std::string sec_name, uint64_t Virtual, uint64_t FileOffset,  uint64_t sh_size);
+    void insert_elfsymbol(std::string symname, int symtype, uint64_t symval, uint64_t offset);
+    void ref_elfsymbol(const char* symname, int symtype, uint64_t symval);
     int kcrc_index(std::string symbol, uint32_t* kcrc);
+
+    // couple of helpers for finding stuff
+    void *find_prog(std::string lookupKey, int* index_out=0);
+    void *find_sect(std::string lookupKey, int* index_out=0);
+    int check_sect(std::string sect_name, void* sect_out);
+
+    void setsymtab(void* symtabin, size_t szin);
+    int gen_symtab(void** symtabout, size_t* szout);
+    kern_static(void* kernimg, size_t kern_sz_a, int bitness_a, int architecture, int endianess_a);
 private:
     // private constructors for internal use only
     using kernel_linux::kernel_linux;
@@ -120,10 +134,6 @@ private:
     // int patch_and_write(Elf_Ehdr* vmlinux_base, Elf_Shdr* vmlinux_cur, Elf_Phdr* phBase, size_t offset);
     ELFBIT
     int patch_and_write_p(void *vmlinux_base, void *vmlinux_cur, void *phBase, size_t offset);
-    // couple of helpers for finding stuff
-    void *find_prog(std::string lookupKey);
-    void *find_sect(std::string lookupKey);
-    int check_sect(std::string sect_name, void* sect_out);
 
     ELFBIT
     int gen_vmlinux_sz_p(size_t *outSz, size_t headOffset);
@@ -145,7 +155,12 @@ private:
     ELFBIT
     int kcrc_index_p(std::string symbol, uint32_t* kcrc);
     ELFBIT
-    int gen_shstrtab_p(std::string **out_shstrtab, uint16_t *numSects, uint16_t *shstrtab_index);
+    int gen_shstrtab_p(size_t target_offset, std::string **out_shstrtab, uint16_t *numSects, uint16_t *shstrtab_index);
+
+    ELFBIT
+    void insert_elfsymbol_p(std::string symname, int symtype, uint64_t symval, uint64_t offset);
+    ELFBIT
+    void ref_elfsymbol_p(const char* symname, int symtype, uint64_t symval);
 
     // finding sections in the binary
     int base_new_shstrtab();
@@ -157,6 +172,20 @@ private:
 
     // program header list, second arg is an Elf_Phdr*
     std::vector<std::pair<std::string, void*>> prog_list;
+
+    // need to track these, but the problem with the symbol table is that it depends on the
+    // architecture of the target kernel. So for that reason we'll let instantiation of it be up
+    // to whoever is using it, and just init to 0 for sanity
+    // actual data type is     std::vector<Elf_Sym>* newsymtab;
+    void* newsymtab;
+    size_t newsymtabsz;
+    // this is even less necessary, really only if you are adding another string table cause you parsed out some symbols
+    const char* newstrtab;
+    size_t newstrtabsz;
+    
+    int architecture;
+    int endianess;
+    size_t entry;
 };
 
 #include "kern_static.hpp"
