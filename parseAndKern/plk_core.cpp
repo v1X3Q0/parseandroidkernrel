@@ -66,7 +66,7 @@ int kern_static::base_new_shstrtab()
     char strtabRef[] = ".shstrtab";
     std::string* shtstrtab_tmp = 0;
 
-    gen_shstrtab(NULL, &shtstrtab_tmp, NULL, NULL);
+    gen_shstrtab((size_t)NULL, &shtstrtab_tmp, NULL, NULL);
     insert_section(strtabRef, kern_sz, shtstrtab_tmp->size() + sizeof(strtabRef));
     return 0;
 }

@@ -76,7 +76,10 @@ void kern_static::elfConstruction_p()
     phdrBase = (Elf_Phdr *)vmlinux_iter;
     for (int i = 0; i < prog_list.size(); i++)
     {
-        ((Elf_Phdr*)prog_list[i].second)->p_offset + sizeof(Elf_Ehdr) + sizeof(Elf_Phdr) * vmlinuxBase->e_phnum;
+        // TODO this seemed to be a line for setting the offset before it
+        // is written to the target program header. I never figured out what
+        // its value was supposed to be, but its something.
+        // ((Elf_Phdr*)prog_list[i].second)->p_offset + sizeof(Elf_Ehdr) + sizeof(Elf_Phdr) * vmlinuxBase->e_phnum;
         memcpy(vmlinux_iter, (Elf_Phdr *)prog_list[i].second, sizeof(Elf_Phdr));
         vmlinux_iter = (void*)((size_t)vmlinux_iter + sizeof(Elf_Phdr));
     }
@@ -94,7 +97,7 @@ void kern_static::elfConstruction_p()
     memcpy(vmlinux_iter, symtab, symtabsz);
 
     // write the new shstrtab to vmlinux
-    gen_shstrtab(NULL, &shstrtab_tmp, &vmlinuxBase->e_shnum, &vmlinuxBase->e_shstrndx);
+    gen_shstrtab((size_t)NULL, &shstrtab_tmp, &vmlinuxBase->e_shnum, &vmlinuxBase->e_shstrndx);
     memcpy(vmlinux_iter, shstrtab_tmp->data(), shstrtab_tmp->size());
     vmlinux_iter = (void *)((size_t)vmlinux_iter + shstrtab_tmp->size());
 

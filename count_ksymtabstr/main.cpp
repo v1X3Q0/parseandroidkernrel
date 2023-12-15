@@ -126,7 +126,7 @@ int main(int argc, char** argv)
     stringcount((const char*)ksymstrtab_addr, &strcount, &strtabend);
     strtabend = strtabend - (size_t)allocBase;
 
-    printf("table has %d strings, and ends at file off 0x%lx\n", strcount, strtabend);
+    printf("table has %ld strings, and ends at file off 0x%lx\n", strcount, strtabend);
 
     SAFE_FREE(allocBase);
 }
