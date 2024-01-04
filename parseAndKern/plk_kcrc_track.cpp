@@ -7,8 +7,52 @@
 #include <string>
 #include <sstream>
 
-#include <sv_gpl.h>
 #include "kern_static.h"
+
+#if !defined(SV_GPL)
+#include <sv_gpl.h>
+#else
+#include <map>
+#include <string>
+#include <fstream>
+
+typedef enum
+{
+    NONGPL_SYM=1,
+    GPL_SYM
+} gpl_symtype;
+
+std::map<std::string, gpl_symtype> ksym_map;
+
+void init_ksym_map()
+{
+    std::ifstream fin(SV_GPL);
+    std::string str;
+    std::string symname;
+    std::string symtype;
+    gpl_symtype gpl;
+
+    while (std::getline(fin, str)) // read in until sentinel value
+    {
+        std::stringstream parse(str); // use stringstream to parse input
+
+        parse >> symname;
+        parse >> symtype;
+
+        if (symtype == "EXPORT_SYMBOL")
+        {
+            gpl = NONGPL_SYM;
+        }
+        else
+        {
+            gpl = GPL_SYM;
+        }
+
+        ksym_map[symname] == gpl;
+    }
+}
+
+#endif
 
 bool strcmp_bool(const char* first, const char* second)
 {

@@ -31,6 +31,7 @@
         } \
     }
 
+#if !defined(__linux__)
 inline uint32_t __bswap_32(uint32_t value)
 {
     return (((value & 0x000000FF) << 24) |
@@ -38,6 +39,7 @@ inline uint32_t __bswap_32(uint32_t value)
             ((value & 0x00FF0000) >>  8) |
             ((value & 0xFF000000) >> 24));
 }
+#endif
 
 ELFBIT
 int parseandgetoffsets_p(kern_static* kern_target)

@@ -13,7 +13,7 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     list(APPEND INCLUDE_LIBS ${ANDROID_TOOL_BASE}/common/local_util/linux_compat)
 endif()
 
-add_library(${PROJECT_NAME} SHARED vxworks_parse.cpp)
+add_library(${PROJECT_NAME} STATIC vxworks_parse.cpp)
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${INCLUDE_LIBS})
 

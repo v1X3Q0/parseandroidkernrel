@@ -5,7 +5,11 @@
 #include <elf.h>
 #include <vector>
 #include <libgen.h>
-// #include <linux/limits.h>
+#if defined(__linux__)
+#include <linux/limits.h>
+#else
+#define PATH_MAX 256
+#endif
 
 #include <localUtil.h>
 #include <kern_static.h>

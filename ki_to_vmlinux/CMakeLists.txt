@@ -17,6 +17,7 @@ set(LINK_LIBRARIES
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     list(APPEND INCLUDE_DIRS /usr/include/json-c)
+    list(APPEND LINK_LIBRARIES json-c)
 elseif (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     list(APPEND INCLUDE_DIRS /usr/local/include/json-c ${ANDROID_TOOL_BASE}/common/local_util/linux_compat)
     target_link_directories(${PROJECT_NAME} PRIVATE /usr/local/lib/)
