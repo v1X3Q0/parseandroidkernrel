@@ -24,16 +24,8 @@ if (NOT DEFINED ANDROID_OS)
 endif()
 
 set(NOLIVE 1)
-
-# ===========================================
-# ============ toolchain arch ===============
-# ===========================================
-if (ARCH MATCHES "arm64" OR ARCH MATCHES "arm64e" OR ARCH MATCHES "aarch64")
-    add_definitions(-DSUPPORT_AARCH64=1)
-# I believe windows does AMD64 and linux does x86_64
-elseif(ARCH MATCHES "AMD64" OR ARCH MATCHES "i386" OR ARCH MATCHES "x86_64")
-    add_definitions(-DSUPPORT_X86_64=1)
-endif()
+set(CMAKE_CXX_STANDARD 17)
+# set_property(TARGET tgt PROPERTY CXX_STANDARD 17)
 
 add_subdirectory(${ANDROID_TOOL_BASE}/linux/helpers/scripts/ksym_gpl
     # ${CMAKE_BINARY_DIR}/ksym_gpl
@@ -42,11 +34,14 @@ add_subdirectory(${ANDROID_TOOL_BASE}/linux/helpers/scripts/ksym_gpl
 # includes
 # # python generator for gpl map
 if (NOT DEFINED POSTEC_PLURAL)
-    message("am top project, gonna add deps")
+    message("-- ${PROJECT_NAME} is top project, gonna add deps")
 
     # libraries
     add_subdirectory(${ANDROID_TOOL_BASE}/common/hde_armv8
         # ${CMAKE_BINARY_DIR}/hde_armv8
+        )
+    add_subdirectory(${ANDROID_TOOL_BASE}/common/hde_x86
+        # ${CMAKE_BINARY_DIR}/hde_x86
         )
     add_subdirectory(${ANDROID_TOOL_BASE}/common/c_reginst
         # ${CMAKE_BINARY_DIR}/c_reginst
