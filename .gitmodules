@@ -19,3 +19,6 @@
 [submodule "common/hde_x86"]
 	path = common/hde_x86
 	url = https://github.com/v1X3Q0/hde_x86.git
+[submodule "linux/rwDrv"]
+	path = linux/rwDrv
+	url = https://github.com/v1X3Q0/rwDrv.git
