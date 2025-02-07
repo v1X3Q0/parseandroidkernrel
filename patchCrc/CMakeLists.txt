@@ -24,7 +24,9 @@ target_include_directories(patchCrc PRIVATE ${INCLUDE_LIST})
 
 # for the android kernel static image parser
 target_link_libraries(patchCrc PRIVATE
-    parseAndKern kern_linux kernel_block
+    parseAndKern
+    # kern_linux
+    kernel_block
     # for the instruction parsing
     # c_reginst
     hdeA64 localUtil bgrep_e)

@@ -12,7 +12,9 @@ set(INCLUDE_DIRS
     )
 
 set(LINK_LIBRARIES
-    parseAndKern kern_linux kernel_block
+    parseAndKern
+    # kern_linux
+    kernel_block
     bgrep_e localUtil)
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
