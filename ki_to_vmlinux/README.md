@@ -15,6 +15,9 @@ The point of this particular tool is to generate a vmlinux elf file from a provi
 | `__ex_table`        |                                                                                                                                                 |                                                                                                              |
 | `.init.text`        | This is the modern version of the init section.                                                                                                 | Follow the branch from the `.head.text` section.                                                             |
 
+
+Then a shorthand sample of the json:
+
 ```json
     "sections": {
         ".head.text": {
