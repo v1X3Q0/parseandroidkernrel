@@ -46,11 +46,15 @@ if (NOT DEFINED ANDROID_OS)
     message(WARNING "No ANDROID_OS specified, defaulting to value ${ANDROID_OS}")
 endif()
 
+# library parseAndKern itself
 add_subdirectory(parseAndKern)
-# executables
-add_subdirectory(lz42lz4)
-add_subdirectory(uncrc)
-add_subdirectory(count_ksymtabstr)
 
-add_subdirectory(patchCrc)
-add_dependencies(patchCrc ksym_gpl)
+if (NOT ${CMAKE_CURRENT_SOURCE_DIR} STREQUAL ${CMAKE_SOURCE_DIR})
+    # executables
+    add_subdirectory(lz42lz4)
+    add_subdirectory(uncrc)
+    add_subdirectory(count_ksymtabstr)
+
+    add_subdirectory(patchCrc)
+    add_dependencies(patchCrc ksym_gpl)
+endif()
