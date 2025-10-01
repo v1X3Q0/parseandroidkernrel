@@ -49,7 +49,6 @@ endif()
 add_subdirectory(parseAndKern)
 # executables
 add_subdirectory(lz42lz4)
-add_subdirectory(ki_to_vmlinux)
 add_subdirectory(uncrc)
 add_subdirectory(count_ksymtabstr)
 
