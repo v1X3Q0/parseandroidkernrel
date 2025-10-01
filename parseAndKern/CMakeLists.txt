@@ -19,11 +19,12 @@ endif()
 
 add_library(${PROJECT_NAME} STATIC plk_core.cpp kern_static.cpp)
 
-add_library(plk_kcrc_track STATIC plk_kcrc_track.cpp)
 
 if (DEFINED SV_GPL)
-    add_dependencies(${PROJECT_NAME} ksym_gpl)
-    target_compile_definitions(${PROJECT_NAME} PRIVATE SV_GPL="${SV_GPL}")
+    add_library(plk_kcrc_track STATIC plk_kcrc_track.cpp)
+    
+    add_dependencies(plk_kcrc_track ksym_gpl)
+    target_compile_definitions(plk_kcrc_track PRIVATE SV_GPL="${SV_GPL}")
     list(APPEND INCLUDE_LIST ${CMAKE_BINARY_DIR}/linux/helpers/scripts/ksym_gpl)
 endif()
 
