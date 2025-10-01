@@ -49,7 +49,7 @@ endif()
 # library parseAndKern itself
 add_subdirectory(parseAndKern)
 
-if (NOT ${CMAKE_CURRENT_SOURCE_DIR} STREQUAL ${CMAKE_SOURCE_DIR})
+if (${CMAKE_CURRENT_SOURCE_DIR} STREQUAL ${CMAKE_SOURCE_DIR})
     # executables
     add_subdirectory(lz42lz4)
     add_subdirectory(uncrc)
