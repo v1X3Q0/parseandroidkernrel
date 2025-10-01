@@ -17,7 +17,9 @@ elseif(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     list(APPEND INCLUDE_LIST /usr/local/include/json-c ${ANDROID_TOOL_BASE}/common/local_util/linux_compat)
 endif()
 
-add_library(${PROJECT_NAME} STATIC plk_core.cpp plk_kcrc_track.cpp kern_static.cpp)
+add_library(${PROJECT_NAME} STATIC plk_core.cpp kern_static.cpp)
+
+add_library(plk_kcrc_track STATIC plk_kcrc_track.cpp)
 
 if (DEFINED SV_GPL)
     add_dependencies(${PROJECT_NAME} ksym_gpl)
